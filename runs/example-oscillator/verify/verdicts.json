@@ -1,7 +1,13 @@
 {
   "paper": "example-oscillator",
-  "generated_at": "2026-11-18T12:42:01",
-  "commit": "7047352",
+  "generated_at": "2026-11-18T14:39:21",
+  "commit": "fe8f8d0",
+  "inputs": {
+    "equations_sha256": "070aedf51704479abf4ac502d7a8096e1c11071385ef51347352b1beadc00d03",
+    "attempt": null,
+    "equations_versions": 0,
+    "questions": 0
+  },
   "counts": {
     "claims": {
       "HOLDS": 0,
