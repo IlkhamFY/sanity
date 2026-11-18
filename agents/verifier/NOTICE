@@ -4,8 +4,9 @@ printed it, the verdict names VERIFIED, VERIFIED-NUMERICALLY, FAILED and
 UNCHECKED, the one-script-per-check layout, and the shape of the runner that
 writes RESULTS.md.
 
-Sanity adds Lean-PROVED above those verdicts, the ruling table in RESULTS.md,
-and does not use Mathematica. The adapted files are check_template.py and
+Sanity replaces those names with HOLDS, FAILS and UNCHECKED plus an evidence
+kind (proof, symbolic, asymptotic, numerical, refutation, counterexample), adds
+Lean and verdicts.json, and does not use Mathematica. The adapted files are check_template.py and
 verify_run.py. This directory is the Verifier (formerly the Checker).
 
 MIT License

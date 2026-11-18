@@ -38,10 +38,29 @@ ALLOWED_NODES = (
     ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.USub, ast.UAdd,
 )
 RELATIONS = {"==": sp.Eq, "<": sp.Lt, "<=": sp.Le, ">": sp.Gt, ">=": sp.Ge}
+APPROXIMATE = {"approx", "sim"}
+LIMIT_POINTS = {"0": sp.Integer(0), "oo": sp.oo, "-oo": -sp.oo}
 
 
 class ClaimError(ValueError):
     """Raised when equations.json or one of its SymPy strings is unusable."""
+
+
+@dataclass(frozen=True)
+class Regime:
+    """Where an approximate relation holds, as the paper states it."""
+
+    symbol: sp.Symbol | None = None
+    point: sp.Expr | None = None
+    direction: str | None = None
+    order: sp.Expr | None = None
+    tolerance: float | None = None
+    note: str | None = None
+
+    @property
+    def is_stated(self) -> bool:
+        """False if the paper gave no limit, order or tolerance to check against."""
+        return self.symbol is not None or self.order is not None or self.tolerance is not None
 
 
 @dataclass(frozen=True)
@@ -53,14 +72,25 @@ class Claim:
     rhs: sp.Expr | None = None
     relation: str = "=="
     symbols: dict[str, sp.Symbol] = field(default_factory=dict)
+    regime: Regime | None = None
 
     @property
     def has_sympy(self) -> bool:
         return self.lhs is not None and self.rhs is not None
 
+    @property
+    def is_approximate(self) -> bool:
+        return self.relation in APPROXIMATE
+
     def as_relation(self):
+        """The exact SymPy relation. Approximate claims have none: use lhs, rhs, regime."""
         if not self.has_sympy:
             raise ClaimError(f"equation ({self.number}) has no sympy field")
+        if self.is_approximate:
+            raise ClaimError(
+                f"equation ({self.number}) is approximate ({self.relation}); "
+                "check lhs and rhs against its regime instead"
+            )
         return RELATIONS[self.relation](self.lhs, self.rhs, evaluate=False)
 
 
@@ -119,18 +149,39 @@ def build_expression(text: str, spec: dict) -> sp.Expr:
     return parse_expr(text, local_dict=local, evaluate=False)
 
 
+def parse_regime(spec: dict, symbols: dict[str, sp.Symbol]) -> Regime | None:
+    raw = spec.get("regime")
+    if raw is None:
+        return None
+    limit = raw.get("limit")
+    symbol = point = direction = None
+    if limit is not None:
+        if limit["symbol"] not in symbols:
+            raise ClaimError(f"regime limit symbol {limit['symbol']!r} is not declared in symbols")
+        symbol = symbols[limit["symbol"]]
+        point = LIMIT_POINTS[limit["to"]]
+        direction = limit.get("direction")
+    order = build_expression(raw["order"], spec) if "order" in raw else None
+    return Regime(symbol, point, direction, order, raw.get("tolerance"), raw.get("note"))
+
+
 def parse_claim(entry: dict) -> Claim:
     spec = entry.get("sympy")
     base = {"number": entry["number"], "line": entry["line"], "latex": entry["latex"]}
     if spec is None:
         return Claim(**base)
     _, symbols = _namespace(spec)
+    relation = spec.get("relation", "==")
+    regime = parse_regime(spec, symbols)
+    if relation not in APPROXIMATE and regime is not None:
+        raise ClaimError(f"a regime only applies to approx or sim, not {relation!r}")
     return Claim(
         **base,
         lhs=build_expression(spec["lhs"], spec),
         rhs=build_expression(spec["rhs"], spec),
-        relation=spec.get("relation", "=="),
+        relation=relation,
         symbols=symbols,
+        regime=regime,
     )
 
 
@@ -161,7 +212,17 @@ def main(argv: list[str] | None = None) -> int:
         print(f"claims: {exc}", file=sys.stderr)
         return 1
     for claim in claims:
-        form = str(claim.as_relation()) if claim.has_sympy else "(no sympy field)"
+        if not claim.has_sympy:
+            form = "(no sympy field)"
+        elif claim.is_approximate:
+            regime = claim.regime
+            where = (
+                f"{regime.symbol} -> {regime.point}{regime.direction or ''}" if regime.symbol is not None
+                else (regime.note or "regime not stated")
+            )
+            form = f"{claim.lhs}  {claim.relation}  {claim.rhs}   [{where}]"
+        else:
+            form = str(claim.as_relation())
         print(f"({claim.number:>3})  line {claim.line:<4}  {form}")
     return 0
 

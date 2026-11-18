@@ -2,7 +2,7 @@
 
 Sanity finds mathematical mistakes in the equations of a scientific paper. Three agents do the work. A language model never gets the last word: a step stands only if symbolic math agrees, and a flagged step can be settled by a proof.
 
-A Reader takes a PDF or a LaTeX source and lifts each displayed equation with its number and source line. A Verifier re-derives the step in SymPy (algebra, dimensions, limits, special cases). SymPy screens every equation. For a flagged step, the Verifier has an LLM write the claim as a Lean 4 statement with Mathlib, and Lean proves or refutes it. The Verifier then confirms or rejects each flag itself, from the executed script verdict and from Lean only. `Lean-PROVED` is the strongest evidence it will attach. A Writer turns those verdicts into `REPORT.md`, a short Telegram summary, and suggested correction text. The Writer never changes a verdict.
+A Reader takes a PDF or a LaTeX source and lifts each displayed equation with its number and source line. A Verifier re-derives the step in SymPy (algebra, dimensions, limits, special cases). SymPy screens every equation. For a flagged step, the Verifier has an LLM write the claim as a Lean 4 statement with Mathlib, and Lean proves or refutes it. The Verifier then decides each claim itself, from executed script verdicts only: `HOLDS`, `FAILS` or `UNCHECKED`, with the evidence kind (a Lean `proof` is the strongest), and a checked correction for a failing claim. A Writer turns those verdicts into `REPORT.md`, a short Telegram summary, and suggested correction text. The Writer never changes a verdict.
 
 Three people watch and steer in a Telegram group with the three Hermes agents. Bots in a group cannot see each other's messages, so the repo hands work from one agent to the next. See [docs/telegram.md](docs/telegram.md) and [docs/handoff.md](docs/handoff.md).
 
@@ -90,7 +90,7 @@ Saved checks for the specimen live in `runs/example-oscillator/verify/checks/`, 
 python3 agents/verifier/verify_run.py runs/example-oscillator/verify
 ```
 
-The specimen includes the two planted errors, so this command exits 1. `Lean-PROVED` is the strongest verdict, above a symbolic pass. The procedure for the Verifier is [skills/verify-math/SKILL.md](skills/verify-math/SKILL.md). A run writes `PLAN.md` and waits for approval before adding checks. The Writer's report for this note is [runs/example-oscillator/REPORT.md](runs/example-oscillator/REPORT.md).
+The specimen includes the two planted errors, so this command exits 1. It writes `RESULTS.md` and `verdicts.json`, which the Writer reads. The procedure for the Verifier is [skills/verify-math/SKILL.md](skills/verify-math/SKILL.md). A run writes `PLAN.md` and waits for approval before adding checks. The Writer's report for this note is [runs/example-oscillator/REPORT.md](runs/example-oscillator/REPORT.md).
 
 To set up your own bot, from the repo root, with `HERMES_PROFILE_DIR` pointed at the profile path you want:
 
@@ -124,7 +124,7 @@ Notes: [agents/verifier/lean/NOTES.md](agents/verifier/lean/NOTES.md). Do not bu
 
 ## Acknowledgements
 
-The Verifier's rule that a verdict exists only if an executed script printed it, the names `VERIFIED`, `VERIFIED-NUMERICALLY`, `FAILED` and `UNCHECKED`, and the runner that writes `RESULTS.md` are adapted from claude-mathematician by Konstantin Gerbig (MIT, copyright 2026 Konstantin Gerbig). See [agents/verifier/NOTICE](agents/verifier/NOTICE). Sanity adds `Lean-PROVED` above those verdicts and does not use Mathematica.
+The Verifier's rule that a verdict exists only if an executed script printed it, the original verdict names (`VERIFIED`, `VERIFIED-NUMERICALLY`, `FAILED`, `UNCHECKED`, now replaced by `HOLDS`/`FAILS`/`UNCHECKED` plus an evidence kind), and the runner that writes `RESULTS.md` are adapted from claude-mathematician by Konstantin Gerbig (MIT, copyright 2026 Konstantin Gerbig). See [agents/verifier/NOTICE](agents/verifier/NOTICE). Sanity adds Lean and `verdicts.json`, and does not use Mathematica.
 
 ## License
 

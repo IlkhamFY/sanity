@@ -17,7 +17,10 @@ import sympy as sp
 CHECK_ID = "NN_label_type"
 # Read by verify_run without running this file. Keep both as plain literals.
 ENGINE = "sympy"  # sympy | scipy | lean | python
-CLAIM = None  # equation number tested as printed, e.g. "3"; None for a supporting check
+CLAIM = None  # equation number tested as printed, e.g. "3"
+# For a check of a corrected equation instead, set CLAIM = None and:
+# CORRECTS = "3"            # the equation this corrects
+# CORRECTION = r"E=..."     # the corrected LaTeX
 NUMERIC_POINTS = 200
 NUMERIC_TOLERANCE = sp.Float("1e-8")
 
@@ -29,8 +32,14 @@ lhs = None
 rhs = None
 
 
-def verdict(name: str, detail: str) -> None:
-    print(f"VERDICT: {name} {CHECK_ID} | {detail}")
+def verdict(name: str, evidence: str, detail: str) -> None:
+    """Print the one VERDICT line. See agents/verifier/rule.py for the pairs.
+
+    HOLDS: symbolic | asymptotic | numerical. FAILS: symbolic | asymptotic |
+    counterexample. UNCHECKED: none. proof and refutation come only from
+    lean_check.py.
+    """
+    print(f"VERDICT: {name} {CHECK_ID} {evidence} | {detail}")
 
 
 def sample_relative_error(lhs, rhs, symbols, ranges):
@@ -59,22 +68,23 @@ def sample_relative_error(lhs, rhs, symbols, ranges):
 
 def main() -> int:
     if lhs is None or rhs is None:
-        verdict("UNCHECKED", "template not filled in")
+        verdict("UNCHECKED", "none", "template not filled in")
         return 2
     difference = sp.simplify(sp.expand(lhs - rhs))
     if difference == 0:
-        verdict("VERIFIED", "symbolic: simplify(lhs - rhs) == 0")
+        verdict("HOLDS", "symbolic", "simplify(lhs - rhs) == 0")
         return 0
     ranges = {m: (0.1, 10), k: (0.1, 10), v: (0.1, 10), x: (0.1, 10)}
     worst, point = sample_relative_error(lhs, rhs, (m, k, v, x), ranges)
     shown = {str(symbol): f"{value:.6g}" for symbol, value in point.items()}
     if worst < float(NUMERIC_TOLERANCE):
         verdict(
-            "VERIFIED-NUMERICALLY",
+            "HOLDS",
+            "numerical",
             f"{NUMERIC_POINTS} points, max rel err {worst:.3g}",
         )
         return 0
-    verdict("FAILED", f"max rel err {worst:.3g} at {shown}; residual {difference}")
+    verdict("FAILS", "counterexample", f"max rel err {worst:.3g} at {shown}; residual {difference}")
     return 1
 
 

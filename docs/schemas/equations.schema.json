@@ -54,6 +54,13 @@
       "description": "Optional machine form of the equation, written by the Reader, read by the Verifier. Strings use SymPy syntax: ** for powers, explicit * for products. Every name must be declared in symbols or functions, apart from standard SymPy functions and constants (sqrt, exp, sin, pi, I, ...).",
       "additionalProperties": false,
       "required": ["lhs", "rhs", "symbols"],
+      "if": {
+        "required": ["relation"],
+        "properties": {"relation": {"enum": ["approx", "sim"]}}
+      },
+      "then": {
+        "required": ["regime"]
+      },
       "properties": {
         "lhs": {
           "type": "string",
@@ -67,9 +74,53 @@
         },
         "relation": {
           "type": "string",
-          "enum": ["==", "<", "<=", ">", ">="],
+          "enum": ["==", "<", "<=", ">", ">=", "approx", "sim"],
           "default": "==",
-          "description": "How lhs relates to rhs. Defaults to equality."
+          "description": "How lhs relates to rhs. Defaults to equality. approx: \\approx or \\simeq (lhs/rhs -> 1 in the regime, or the error is of the stated order, or within the stated tolerance). sim: \\sim (same order: lhs/rhs stays finite and nonzero in the regime; the O(1) factor is not checked). approx and sim need a regime."
+        },
+        "regime": {
+          "type": "object",
+          "description": "Where an approximate relation is meant to hold, as stated in the paper. If the paper states none, give only a note saying so; the Verifier then reports UNCHECKED instead of guessing.",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "limit": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["symbol", "to"],
+              "properties": {
+                "symbol": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+                  "description": "Declared symbol that goes to the limit, e.g. a small parameter eps."
+                },
+                "to": {
+                  "type": "string",
+                  "enum": ["0", "oo", "-oo"]
+                },
+                "direction": {
+                  "type": "string",
+                  "enum": ["+", "-"],
+                  "description": "One-sided limit, e.g. + for eps -> 0+."
+                }
+              }
+            },
+            "order": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Size of the neglected terms in SymPy syntax, e.g. \"eps**2\" for an error O(eps**2)."
+            },
+            "tolerance": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Relative tolerance, when the paper quotes a numerical approximation (e.g. 0.01 for 1%)."
+            },
+            "note": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The paper's wording of the regime, e.g. \"for k H >> 1\"."
+            }
+          }
         },
         "symbols": {
           "type": "object",

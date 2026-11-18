@@ -16,11 +16,11 @@ printed = sp.Rational(1, 2) * m * v**2 + k * x**2
 integral = sp.integrate(m * v, v) + sp.integrate(k * x, x)
 difference = sp.simplify(printed - integral)
 if difference == 0:
-    print(f"VERDICT: VERIFIED {CHECK_ID} | symbolic: simplify(lhs - rhs) == 0")
+    print(f"VERDICT: HOLDS {CHECK_ID} symbolic | simplify(lhs - rhs) == 0")
 else:
     point = {m: 1, k: 1, v: 1, x: 1}
     print(
-        "VERDICT: FAILED "
-        f"{CHECK_ID} | at m=k=v=x=1: printed {printed.subs(point)}, "
+        "VERDICT: FAILS "
+        f"{CHECK_ID} counterexample | at m=k=v=x=1: printed {printed.subs(point)}, "
         f"integral {integral.subs(point)}, gap {difference}"
     )

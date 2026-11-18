@@ -2,7 +2,7 @@
 
 SymPy screens every equation. It is fast and it does not trust the model: algebra, dimensions, limits, special cases.
 
-When a step is flagged, the Verifier asks an LLM to formalize that claim as a Lean 4 statement against Mathlib. Lean then proves the claim or refutes it. The Verifier confirms the flag only from that executed result: a Lean success is the verdict `Lean-PROVED`, and the ruling is Lean-verified. That outranks a SymPy flag. The model does not get the last word.
+For a central exact claim, the Verifier may ask an LLM to formalize it as a Lean 4 statement against Mathlib. If Lean proves it, the claim `HOLDS` with evidence `proof`; if Lean proves its negation, it `FAILS` with evidence `refutation`. A Lean run that times out proves nothing: the claim stays `UNCHECKED` unless a refutation or a counterexample is found. Only `lean_check.py` (planned) may report `proof` or `refutation`; `verify_run.py` treats them as an ERROR from any other script. The model does not get the last word.
 
 ## This directory
 
