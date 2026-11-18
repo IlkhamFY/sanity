@@ -185,7 +185,9 @@ def test_every_equation_gets_a_claim_entry(tmp_path):
     assert _run_with_equations(tmp_path, EQUATIONS, CLAIM="1") == 0
     data = json.loads((tmp_path / "verify" / "verdicts.json").read_text(encoding="utf-8"))
     schema_check(data)
-    assert data["paper"] == tmp_path.name
+    assert data["paper"] == "toy"  # equations.json slug wins over the folder name
+    assert data["inputs"]["equations_sha256"] is not None
+    assert data["inputs"]["attempt"] is None
     assert [(c["claim"], c["verdict"]) for c in data["claims"]] == [("1", "HOLDS"), ("2", "UNCHECKED")]
     assert data["claims"][1]["evidence"]["detail"] == "no check tests this claim"
 
@@ -244,3 +246,27 @@ def test_specimen_run_gives_verdicts_and_a_verified_correction(tmp_path):
     }
     assert claims["4"]["correction"]["latex"] == r"\tau=2m/b"
     assert claims["4"]["correction"]["verified"] is True
+
+
+def test_scratch_attempt_outside_git_records_code_commit_and_inputs(tmp_path):
+    """A Verifier scratch folder is not a git repo; the code commit must still be known."""
+    attempt = tmp_path / "toy" / "2"
+    (attempt / "verify" / "checks").mkdir(parents=True)
+    (attempt / "equations.json").write_text(json.dumps(EQUATIONS), encoding="utf-8")
+    (attempt / "equations.v1.json").write_text("{}", encoding="utf-8")
+    (attempt / "equations.v2.json").write_text("{}", encoding="utf-8")
+    (attempt / "conversation.jsonl").write_text(
+        json.dumps({"kind": "question"}) + "\n" + json.dumps({"kind": "answer"}) + "\n", encoding="utf-8"
+    )
+    _check(attempt / "verify" / "checks", "01_x.py", "VERDICT: HOLDS 01_x symbolic | ok", CLAIM="1")
+    assert main([str(attempt / "verify")]) == 0
+    data = json.loads((attempt / "verify" / "verdicts.json").read_text(encoding="utf-8"))
+    schema_check(data)
+    assert data["paper"] == "toy"
+    assert data["commit"] != "?" and len(data["commit"].split()[0]) >= 7
+    assert data["inputs"]["attempt"] == 2
+    assert data["inputs"]["equations_versions"] == 2
+    assert data["inputs"]["questions"] == 1
+    results = (attempt / "verify" / "RESULTS.md").read_text(encoding="utf-8")
+    assert "Paper: toy, attempt 2." in results
+    assert "2 version(s) received, 1 question(s) asked" in results
