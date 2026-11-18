@@ -9,6 +9,8 @@ Added: 2026-11-18-oscillator. Changed: -.
 import sympy as sp
 
 CHECK_ID = "02_eq3_paper_energy_step"
+ENGINE = "sympy"
+CLAIM = "3"
 m, k, v, x = sp.symbols("m k v x", positive=True)
 printed = sp.Rational(1, 2) * m * v**2 + k * x**2
 integral = sp.integrate(m * v, v) + sp.integrate(k * x, x)

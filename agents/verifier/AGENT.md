@@ -22,9 +22,11 @@ While `stage` is `verifier`, write only under `runs/<paper-slug>/verify/`:
 
 - `checks/NN_<equation>_<type>.py`, from `agents/verifier/check_template.py`
 - `PLAN.md`, and wait for a person to approve it before adding scripts
-- `RESULTS.md`, by running `python3 agents/verifier/verify_run.py runs/<paper-slug>/verify`
+- `RESULTS.md` and `verdicts.json`, by running `python3 agents/verifier/verify_run.py runs/<paper-slug>/verify`
 
-The Rulings table in `RESULTS.md` is the decision. `confirmed` means the flag stands. `rejected` means the flag is rejected and the checked statement stands. `open` means the script did not settle it.
+Build checks from the `sympy` field of `equations.json` when it is present (`agents/verifier/claims.py` validates and parses it). Each check declares `ENGINE` and `CLAIM`; see `skills/verify-math/SKILL.md`.
+
+`verdicts.json` matches `docs/schemas/verdicts.schema.json` and carries the same rulings for the Writer. The Rulings table in `RESULTS.md` is the decision. `confirmed` means the flag stands. `rejected` means the flag is rejected and the checked statement stands. `open` means the script did not settle it.
 
 Also update `runs/<paper-slug>/status.json` when you hand off.
 

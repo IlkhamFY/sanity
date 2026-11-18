@@ -7,6 +7,8 @@ Added: 2026-11-18-oscillator. Changed: -.
 """
 
 CHECK_ID = "03_eq4_decay_units"
+ENGINE = "python"  # dimension exponents, no CAS needed
+CLAIM = "4"
 
 # Exponents (mass, length, time).
 force = (1, 1, -2)

@@ -15,6 +15,9 @@ import random
 import sympy as sp
 
 CHECK_ID = "NN_label_type"
+# Read by verify_run without running this file. Keep both as plain literals.
+ENGINE = "sympy"  # sympy | scipy | lean | python
+CLAIM = None  # equation number tested as printed, e.g. "3"; None for a supporting check
 NUMERIC_POINTS = 200
 NUMERIC_TOLERANCE = sp.Float("1e-8")
 

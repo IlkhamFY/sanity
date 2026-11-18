@@ -13,11 +13,12 @@ runs/<paper-slug>/
     checks/
     PLAN.md
     RESULTS.md
+    verdicts.json    generated with RESULTS.md, read by the Writer
   REPORT.md          Writer
   telegram.md        Writer
 ```
 
-`equations.json` matches [docs/schemas/equations.schema.json](schemas/equations.schema.json). `status.json` matches [docs/schemas/status.schema.json](schemas/status.schema.json).
+`equations.json` matches [docs/schemas/equations.schema.json](schemas/equations.schema.json). Its optional `sympy` field per equation is the Verifier's input. `status.json` matches [docs/schemas/status.schema.json](schemas/status.schema.json). `verify/verdicts.json` matches [docs/schemas/verdicts.schema.json](schemas/verdicts.schema.json).
 
 `status.json` fields:
 

@@ -39,6 +39,7 @@ runs/<paper-slug>/verify/
   checks/NN_<equation>_<type>.py
   PLAN.md
   RESULTS.md          generated
+  verdicts.json       generated, for the Writer
 ```
 
 Each script is deterministic and prints exactly one line:
@@ -47,8 +48,27 @@ Each script is deterministic and prints exactly one line:
 VERDICT: <verdict> <check-id> | <one-line detail>
 ```
 
+Each script also declares two plain literals near the top. `verify_run.py`
+reads them without running the script:
+
+```python
+ENGINE = "sympy"   # sympy | scipy | lean | python
+CLAIM = "3"        # equation number tested as printed; None for a supporting check
+```
+
+Only a check with a `CLAIM` gets a ruling. A supporting check (for example the
+corrected form of a wrong equation) records its verdict but rules on nothing.
+
 Start from `agents/verifier/check_template.py`. No paper prose in the script:
 equation, label, and one line of claim.
+
+## Input
+
+When `equations.json` has a `sympy` field for an equation, build the check
+from it, not from the LaTeX: `claims.load_claims(path)` validates the file and
+returns SymPy expressions with the declared assumptions. Never `eval` or
+`sympify` those strings yourself. `python3 agents/verifier/claims.py
+runs/<paper-slug>/equations.json` lists what was parsed.
 
 ## Procedure
 
@@ -66,4 +86,6 @@ equation, label, and one line of claim.
 6. Leave the paper and `equations.json` untouched. Set `stage` to `writer`,
    commit, push, and post `@<writer-bot> runs/<paper-slug> ready`.
 
-`verify_run.py` exits 1 when any check fails, errors, or prints no verdict.
+`verify_run.py` exits 1 when any check fails, errors, or prints no verdict. It
+exits 2 before running anything if `equations.json` is invalid or a `CLAIM`
+names an equation that is not in it.

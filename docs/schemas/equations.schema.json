@@ -40,6 +40,59 @@
           "latex": {
             "type": "string",
             "minLength": 1
+          },
+          "sympy": {
+            "$ref": "#/$defs/sympy"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sympy": {
+      "type": "object",
+      "description": "Optional machine form of the equation, written by the Reader, read by the Verifier. Strings use SymPy syntax: ** for powers, explicit * for products. Every name must be declared in symbols or functions, apart from standard SymPy functions and constants (sqrt, exp, sin, pi, I, ...).",
+      "additionalProperties": false,
+      "required": ["lhs", "rhs", "symbols"],
+      "properties": {
+        "lhs": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Left-hand side, e.g. \"E\"."
+        },
+        "rhs": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Right-hand side, e.g. \"m*v**2/2 + k*x**2\"."
+        },
+        "relation": {
+          "type": "string",
+          "enum": ["==", "<", "<=", ">", ">="],
+          "default": "==",
+          "description": "How lhs relates to rhs. Defaults to equality."
+        },
+        "symbols": {
+          "type": "object",
+          "description": "Every symbol in lhs and rhs, with the SymPy assumptions the paper states or implies.",
+          "propertyNames": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": ["positive", "negative", "nonnegative", "nonpositive", "nonzero", "real", "integer", "complex"]
+            }
+          }
+        },
+        "functions": {
+          "type": "array",
+          "description": "Names used as undefined functions, e.g. x for x(t).",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
           }
         }
       }
