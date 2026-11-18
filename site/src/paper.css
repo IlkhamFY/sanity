@@ -1,0 +1,157 @@
+.sheet {
+  width: min(68rem, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2.2rem 0 3rem;
+}
+
+.sheet h1 {
+  max-width: 20em;
+  margin: 0.6rem 0 0.7rem;
+  font-size: clamp(1.7rem, 4.2vw, 2.5rem);
+  line-height: 1.15;
+}
+
+.back {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.back a,
+.links a {
+  color: var(--muted);
+}
+
+.links,
+.blurb,
+.count,
+.fine {
+  margin: 0.35rem 0 0;
+}
+
+.blurb {
+  max-width: 38em;
+  color: var(--ink);
+}
+
+.count,
+.fine,
+.kind,
+.tag,
+.back {
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.fine {
+  margin-top: 1.4rem;
+  max-width: 40em;
+  line-height: 1.45;
+}
+
+.tabs {
+  display: flex;
+  gap: 1.25rem;
+  margin: 1.3rem 0 0.4rem;
+}
+
+.tabs button {
+  appearance: none;
+  min-height: 44px;
+  padding: 0.35rem 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--faint);
+  font: 500 1rem/1 var(--sans);
+  cursor: pointer;
+}
+
+.tabs button[aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+#claims {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.item {
+  max-width: 100%;
+  border-left: 3px solid var(--faint);
+  background: rgba(243, 239, 230, 0.03);
+}
+
+.sheet .math {
+  display: block;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(243, 239, 230, 0.45) transparent;
+}
+
+.sheet .math::-webkit-scrollbar {
+  display: block;
+  height: 8px;
+}
+
+.item[data-verdict="HOLDS"] {
+  border-left-color: #8fa87a;
+  background: rgba(143, 168, 122, 0.1);
+}
+
+.item[data-verdict="FAILS"] {
+  border-left-color: #c47a6a;
+  background: rgba(196, 122, 106, 0.12);
+}
+
+.item button {
+  appearance: none;
+  display: block;
+  width: 100%;
+  padding: 0.65rem 0.75rem 0.55rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.eqhead {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: baseline;
+}
+
+.tag {
+  text-transform: uppercase;
+}
+
+.more {
+  padding: 0 0.75rem 0.85rem;
+  color: var(--muted);
+}
+
+.more p {
+  margin: 0.35rem 0;
+}
+
+.item .math {
+  margin-top: 0.15rem;
+}
+
+@media (max-width: 640px) {
+  .sheet { padding-top: 1.4rem; }
+  .item button,
+  .more { padding-left: 0.6rem; padding-right: 0.6rem; }
+}

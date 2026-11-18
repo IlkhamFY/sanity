@@ -1,0 +1,159 @@
+{
+  "slug": "arxiv-2410-11128",
+  "title": "Black Holes and Thermogeometric Optimization",
+  "source": "arXiv:2410.11128v1 main.tex",
+  "equations": [
+    {
+      "number": "4.1",
+      "line": 617,
+      "latex": "ds^{2}=-\\left(1-\\frac{R_{S} r}{\\Sigma}\\right)c^{2} dt^{2}-\\frac{2 R_{S} a r\\sin^{2}\\theta}{\\Sigma} c\\, dt\\, d\\phi+\\frac{\\Sigma}{\\Delta}dr^{2}+\\Sigma\\, d\\theta^{2}+\\left(r^{2}+a^{2}+\\frac{R_{S} a^{2} r\\sin^{2}\\theta}{\\Sigma}\\right)\\sin^{2}\\theta\\, d\\phi^{2}"
+    },
+    {
+      "number": "4.2",
+      "line": 623,
+      "latex": "\\Sigma=r^{2}+a^{2}\\cos^{2}\\theta,\\quad \\Delta=r^{2}-R_{S} r+a^{2},\\quad a=\\frac{J}{Mc},\\quad a_{*}=\\frac{2a}{R_{S}},\\quad R_{S}=\\frac{2GM}{c^{2}}"
+    },
+    {
+      "number": "4.3",
+      "line": 630,
+      "latex": "r_{\\pm}=\\frac{1}{2}\\left(R_{S}\\pm\\sqrt{R_{S}^{2}-4a^{2}}\\right)",
+      "sympy": {
+        "lhs": "2*r_plus",
+        "rhs": "R_S + sqrt(R_S**2 - 4*a**2)",
+        "symbols": {
+          "r_plus": [
+            "positive"
+          ],
+          "R_S": [
+            "positive"
+          ],
+          "a": [
+            "positive"
+          ]
+        }
+      }
+    },
+    {
+      "number": "4.4",
+      "line": 636,
+      "latex": "dE=T\\,dS+\\Omega\\,dJ,\\quad S=\\frac{k A}{4 l_{p}^{2}},\\quad A=4\\pi(r_{+}^{2}+a^{2}),\\quad T=\\frac{c\\hbar}{4\\pi k r_{+}}\\frac{r_{+}-r_{-}}{r_{+}+r_{-}},\\quad\\Omega=\\frac{c r_{+}}{a(r_{+}+r_{-})}",
+      "sympy": {
+        "lhs": "Omega",
+        "rhs": "c*r_plus/(a*(r_plus + r_minus))",
+        "symbols": {
+          "Omega": [
+            "positive"
+          ],
+          "c": [
+            "positive"
+          ],
+          "r_plus": [
+            "positive"
+          ],
+          "r_minus": [
+            "positive"
+          ],
+          "a": [
+            "positive"
+          ]
+        }
+      }
+    },
+    {
+      "number": "4.5",
+      "line": 652,
+      "latex": "S(E,J)=\\frac{\\lambda}{2}\\left(E^{2}+\\sqrt{E^{4}-\\zeta^{2} J^{2}}\\right)",
+      "sympy": {
+        "lhs": "S",
+        "rhs": "lam/2 * (En**2 + sqrt(En**4 - zeta**2 * J**2))",
+        "symbols": {
+          "S": [
+            "positive"
+          ],
+          "lam": [
+            "positive"
+          ],
+          "En": [
+            "positive"
+          ],
+          "zeta": [
+            "positive"
+          ],
+          "J": [
+            "positive"
+          ]
+        }
+      }
+    },
+    {
+      "number": "4.6",
+      "line": 654,
+      "latex": "T(E,J)=\\left(\\frac{\\partial S}{\\partial E}\\right)^{-1}\\bigg|_{J}=\\frac{\\sqrt{E^{4}-\\zeta^{2} J^{2}}}{\\lambda E\\left(E^{2}+\\sqrt{E^{4}-\\zeta^{2} J^{2}}\\right)}",
+      "sympy": {
+        "lhs": "T",
+        "rhs": "sqrt(En**4 - zeta**2 * J**2)/(lam*En*(En**2 + sqrt(En**4 - zeta**2 * J**2)))",
+        "symbols": {
+          "T": [
+            "positive"
+          ],
+          "En": [
+            "positive"
+          ],
+          "zeta": [
+            "positive"
+          ],
+          "J": [
+            "positive"
+          ],
+          "lam": [
+            "positive"
+          ]
+        }
+      }
+    },
+    {
+      "number": "4.7",
+      "line": 656,
+      "latex": "\\Omega(E,J)=-T\\frac{\\partial S}{\\partial J}\\bigg|_{E}=\\frac{\\zeta^{2} J}{2 E\\left(E^{2}+\\sqrt{E^{4}-\\zeta^{2} J^{2}}\\right)}",
+      "sympy": {
+        "lhs": "Omega",
+        "rhs": "zeta**2 * J/(2*En*(En**2 + sqrt(En**4 - zeta**2 * J**2)))",
+        "symbols": {
+          "Omega": [
+            "positive"
+          ],
+          "zeta": [
+            "positive"
+          ],
+          "J": [
+            "positive"
+          ],
+          "En": [
+            "positive"
+          ]
+        }
+      }
+    },
+    {
+      "number": "4.9",
+      "line": 664,
+      "latex": "E^{2}>\\zeta J",
+      "sympy": {
+        "lhs": "En**2",
+        "rhs": "zeta*J",
+        "relation": ">",
+        "symbols": {
+          "En": [
+            "positive"
+          ],
+          "zeta": [
+            "positive"
+          ],
+          "J": [
+            "positive"
+          ]
+        }
+      }
+    }
+  ]
+}

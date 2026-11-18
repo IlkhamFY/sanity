@@ -1,0 +1,248 @@
+{
+  "paper": "arxiv-2410-11128",
+  "generated_at": "2026-11-18T22:38:34",
+  "commit": "51263f4",
+  "inputs": {
+    "equations_sha256": "c9ae1846c5e1804c72e06e7f2bb79013156f999d829a98017cf7aa781fd6a557",
+    "attempt": null,
+    "equations_versions": 0,
+    "questions": 0
+  },
+  "counts": {
+    "claims": {
+      "HOLDS": 5,
+      "FAILS": 1,
+      "UNCHECKED": 2
+    },
+    "checks": {
+      "HOLDS": 7,
+      "FAILS": 1,
+      "UNCHECKED": 2,
+      "ERROR": 0
+    }
+  },
+  "claims": [
+    {
+      "claim": "4.1",
+      "verdict": "UNCHECKED",
+      "evidence": {
+        "kind": "none",
+        "check_id": "01_eq41_metric",
+        "engine": "python",
+        "script": "verify/checks/01_eq41_metric.py",
+        "detail": "stated Kerr metric; the Einstein equation was not checked"
+      },
+      "conflict": false,
+      "correction": null
+    },
+    {
+      "claim": "4.2",
+      "verdict": "UNCHECKED",
+      "evidence": {
+        "kind": "none",
+        "check_id": "02_eq42_definitions",
+        "engine": "python",
+        "script": "verify/checks/02_eq42_definitions.py",
+        "detail": "definitions of Sigma, Delta, a, a_*, R_S"
+      },
+      "conflict": false,
+      "correction": null
+    },
+    {
+      "claim": "4.3",
+      "verdict": "HOLDS",
+      "evidence": {
+        "kind": "symbolic",
+        "check_id": "03_eq43_horizons",
+        "engine": "sympy",
+        "script": "verify/checks/03_eq43_horizons.py",
+        "detail": "both roots satisfy Delta=0; r_plus+r_minus=R_S; r_plus*r_minus=a**2"
+      },
+      "conflict": false,
+      "correction": null
+    },
+    {
+      "claim": "4.4",
+      "verdict": "FAILS",
+      "evidence": {
+        "kind": "counterexample",
+        "check_id": "04_eq44_omega",
+        "engine": "sympy",
+        "script": "verify/checks/04_eq44_omega.py",
+        "detail": "at r_plus=2, r_minus=1, a=sqrt(2), c=1: printed sqrt(2)/3, horizon sqrt(2)/6, ratio r_plus/r_minus"
+      },
+      "conflict": false,
+      "correction": {
+        "latex": "\\Omega=\\frac{c r_{-}}{a(r_{+}+r_{-})}",
+        "check_id": "05_eq44_omega_corrected",
+        "verified": true,
+        "evidence": "symbolic",
+        "detail": "simplify(corrected - c*a/(r_plus**2+a**2)) == 0 for a**2=r_plus*r_minus"
+      }
+    },
+    {
+      "claim": "4.5",
+      "verdict": "HOLDS",
+      "evidence": {
+        "kind": "symbolic",
+        "check_id": "07_eq45_entropy",
+        "engine": "sympy",
+        "script": "verify/checks/07_eq45_entropy.py",
+        "detail": "area law equals lam/2*(E**2+sqrt(E**4-zeta**2*J**2)) for E=M*c**2"
+      },
+      "conflict": false,
+      "correction": null
+    },
+    {
+      "claim": "4.6",
+      "verdict": "HOLDS",
+      "evidence": {
+        "kind": "symbolic",
+        "check_id": "08_eq46_temperature",
+        "engine": "sympy",
+        "script": "verify/checks/08_eq46_temperature.py",
+        "detail": "simplify(1/diff(S,E) - printed T) == 0"
+      },
+      "conflict": false,
+      "correction": null
+    },
+    {
+      "claim": "4.7",
+      "verdict": "HOLDS",
+      "evidence": {
+        "kind": "symbolic",
+        "check_id": "09_eq47_omega_ej",
+        "engine": "sympy",
+        "script": "verify/checks/09_eq47_omega_ej.py",
+        "detail": "simplify(-T*diff(S,J) - printed Omega) == 0, and that form equals c*a/(r_plus**2+a**2) for a**2=r_plus*r_minus, r_plus>r_minus"
+      },
+      "conflict": false,
+      "correction": null
+    },
+    {
+      "claim": "4.9",
+      "verdict": "HOLDS",
+      "evidence": {
+        "kind": "symbolic",
+        "check_id": "10_eq49_nonextremal",
+        "engine": "sympy",
+        "script": "verify/checks/10_eq49_nonextremal.py",
+        "detail": "E**2 > zeta*J iff a_*=zeta*J/E**2 < 1, since E**2 > 0"
+      },
+      "conflict": false,
+      "correction": null
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "01_eq41_metric",
+      "role": "claim",
+      "claim": "4.1",
+      "verdict": "UNCHECKED",
+      "evidence": "none",
+      "engine": "python",
+      "script": "verify/checks/01_eq41_metric.py",
+      "detail": "stated Kerr metric; the Einstein equation was not checked",
+      "seconds": 0.0
+    },
+    {
+      "check_id": "02_eq42_definitions",
+      "role": "claim",
+      "claim": "4.2",
+      "verdict": "UNCHECKED",
+      "evidence": "none",
+      "engine": "python",
+      "script": "verify/checks/02_eq42_definitions.py",
+      "detail": "definitions of Sigma, Delta, a, a_*, R_S",
+      "seconds": 0.0
+    },
+    {
+      "check_id": "03_eq43_horizons",
+      "role": "claim",
+      "claim": "4.3",
+      "verdict": "HOLDS",
+      "evidence": "symbolic",
+      "engine": "sympy",
+      "script": "verify/checks/03_eq43_horizons.py",
+      "detail": "both roots satisfy Delta=0; r_plus+r_minus=R_S; r_plus*r_minus=a**2",
+      "seconds": 0.3
+    },
+    {
+      "check_id": "04_eq44_omega",
+      "role": "claim",
+      "claim": "4.4",
+      "verdict": "FAILS",
+      "evidence": "counterexample",
+      "engine": "sympy",
+      "script": "verify/checks/04_eq44_omega.py",
+      "detail": "at r_plus=2, r_minus=1, a=sqrt(2), c=1: printed sqrt(2)/3, horizon sqrt(2)/6, ratio r_plus/r_minus",
+      "seconds": 0.7
+    },
+    {
+      "check_id": "05_eq44_omega_corrected",
+      "role": "correction",
+      "claim": "4.4",
+      "verdict": "HOLDS",
+      "evidence": "symbolic",
+      "engine": "sympy",
+      "script": "verify/checks/05_eq44_omega_corrected.py",
+      "detail": "simplify(corrected - c*a/(r_plus**2+a**2)) == 0 for a**2=r_plus*r_minus",
+      "seconds": 0.3
+    },
+    {
+      "check_id": "06_eq44_nat_lean",
+      "role": "supporting",
+      "claim": null,
+      "verdict": "HOLDS",
+      "evidence": "proof",
+      "engine": "lean",
+      "script": "verify/checks/06_eq44_nat_lean.lean",
+      "detail": "Lean 4.22.0: accepted Sanity.Check.eq44_nat; axioms: none",
+      "seconds": 0.4
+    },
+    {
+      "check_id": "07_eq45_entropy",
+      "role": "claim",
+      "claim": "4.5",
+      "verdict": "HOLDS",
+      "evidence": "symbolic",
+      "engine": "sympy",
+      "script": "verify/checks/07_eq45_entropy.py",
+      "detail": "area law equals lam/2*(E**2+sqrt(E**4-zeta**2*J**2)) for E=M*c**2",
+      "seconds": 0.4
+    },
+    {
+      "check_id": "08_eq46_temperature",
+      "role": "claim",
+      "claim": "4.6",
+      "verdict": "HOLDS",
+      "evidence": "symbolic",
+      "engine": "sympy",
+      "script": "verify/checks/08_eq46_temperature.py",
+      "detail": "simplify(1/diff(S,E) - printed T) == 0",
+      "seconds": 0.4
+    },
+    {
+      "check_id": "09_eq47_omega_ej",
+      "role": "claim",
+      "claim": "4.7",
+      "verdict": "HOLDS",
+      "evidence": "symbolic",
+      "engine": "sympy",
+      "script": "verify/checks/09_eq47_omega_ej.py",
+      "detail": "simplify(-T*diff(S,J) - printed Omega) == 0, and that form equals c*a/(r_plus**2+a**2) for a**2=r_plus*r_minus, r_plus>r_minus",
+      "seconds": 0.4
+    },
+    {
+      "check_id": "10_eq49_nonextremal",
+      "role": "claim",
+      "claim": "4.9",
+      "verdict": "HOLDS",
+      "evidence": "symbolic",
+      "engine": "sympy",
+      "script": "verify/checks/10_eq49_nonextremal.py",
+      "detail": "E**2 > zeta*J iff a_*=zeta*J/E**2 < 1, since E**2 > 0",
+      "seconds": 0.3
+    }
+  ]
+}

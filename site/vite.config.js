@@ -1,5 +1,5 @@
 import { createReadStream, statSync, cpSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
@@ -23,6 +23,14 @@ function copyBrand(outDir) {
 
 export default defineConfig({
   base: "./",
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(here, "index.html"),
+        demo: resolve(here, "demo.html"),
+      },
+    },
+  },
   server: { host: "0.0.0.0", port: 4317, strictPort: true },
   preview: { host: "0.0.0.0", port: 4317, strictPort: true },
   plugins: [

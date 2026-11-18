@@ -1,0 +1,59 @@
+{
+  "slug": "example-oscillator",
+  "title": "A spring, missing a half",
+  "source": "runs/example-oscillator/note.tex",
+  "equations": [
+    {
+      "number": "1",
+      "line": 7,
+      "latex": "m\\ddot{x}=-kx",
+      "sympy": {
+        "lhs": "m*Derivative(x(t), t, 2)",
+        "rhs": "-k*x(t)",
+        "symbols": {"m": ["positive"], "k": ["positive"], "t": ["real"]},
+        "functions": ["x"]
+      }
+    },
+    {
+      "number": "2",
+      "line": 12,
+      "latex": "m\\dot{x}\\,\\ddot{x}+kx\\dot{x}=0",
+      "sympy": {
+        "lhs": "m*Derivative(x(t), t)*Derivative(x(t), t, 2) + k*x(t)*Derivative(x(t), t)",
+        "rhs": "0",
+        "symbols": {"m": ["positive"], "k": ["positive"], "t": ["real"]},
+        "functions": ["x"]
+      }
+    },
+    {
+      "number": "3",
+      "line": 17,
+      "latex": "E=\\tfrac{1}{2}mv^{2}+kx^{2}",
+      "sympy": {
+        "lhs": "E",
+        "rhs": "Rational(1, 2)*m*v**2 + k*x**2",
+        "symbols": {"E": ["real"], "m": ["positive"], "k": ["positive"], "v": ["real"], "x": ["real"]}
+      }
+    },
+    {
+      "number": "4",
+      "line": 22,
+      "latex": "\\tau=b/m",
+      "sympy": {
+        "lhs": "tau",
+        "rhs": "b/m",
+        "symbols": {"tau": ["positive"], "b": ["positive"], "m": ["positive"]}
+      }
+    },
+    {
+      "number": "5",
+      "line": 27,
+      "latex": "\\omega_{0}=\\sqrt{k/m}",
+      "sympy": {
+        "lhs": "omega_0",
+        "rhs": "sqrt(k/m)",
+        "symbols": {"omega_0": ["positive"], "k": ["positive"], "m": ["positive"]}
+      }
+    }
+  ]
+}

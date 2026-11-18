@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A paper, checked — Sanity</title>
+    <meta
+      name="description"
+      content="Equations from arXiv:2410.11128v1, tinted by the verdict Sanity actually ran."
+    />
+    <meta name="theme-color" content="#12263a" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <a class="skip" href="#claims">Skip to the equations</a>
+    <main class="sheet">
+      <p class="back"><a href="./index.html">Sanity</a></p>
+      <h1 id="paper-title">Paper</h1>
+      <p class="links" id="paper-link"></p>
+      <p class="blurb" id="paper-blurb"></p>
+      <p class="count" id="paper-count"></p>
+      <div class="tabs" role="tablist" aria-label="Run">
+        <button type="button" role="tab" id="tab-paper" aria-selected="true" aria-controls="claims">
+          2410.11128
+        </button>
+        <button type="button" role="tab" id="tab-toy" aria-selected="false" aria-controls="claims">
+          Example
+        </button>
+      </div>
+      <ol id="claims"></ol>
+      <p class="fine" id="paper-note"></p>
+    </main>
+    <footer class="colophon">
+      <p>Sanity · MIT</p>
+    </footer>
+    <noscript>
+      <p class="noscript">JavaScript loads the verdicts and typesets the equations.</p>
+    </noscript>
+    <script type="module" src="/src/paper.js"></script>
+  </body>
+</html>
