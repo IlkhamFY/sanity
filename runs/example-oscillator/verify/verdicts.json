@@ -1,7 +1,7 @@
 {
   "paper": "example-oscillator",
-  "generated_at": "2026-11-18T12:40:53",
-  "commit": "87f9e03",
+  "generated_at": "2026-11-18T12:41:42",
+  "commit": "b969e38",
   "counts": {
     "claims": {
       "HOLDS": 0,
@@ -9,7 +9,7 @@
       "UNCHECKED": 3
     },
     "checks": {
-      "HOLDS": 1,
+      "HOLDS": 2,
       "FAILS": 2,
       "UNCHECKED": 0,
       "ERROR": 0
@@ -72,7 +72,13 @@
         "detail": "[b/m] = M0 L0 T-1, not T; 2*m/b is a time"
       },
       "conflict": false,
-      "correction": null
+      "correction": {
+        "latex": "\\tau=2m/b",
+        "check_id": "04_eq4_corrected_decay_units",
+        "verified": true,
+        "evidence": "symbolic",
+        "detail": "[2m/b] = T"
+      }
     },
     {
       "claim": "5",
@@ -120,6 +126,17 @@
       "engine": "python",
       "script": "verify/checks/03_eq4_decay_units.py",
       "detail": "[b/m] = M0 L0 T-1, not T; 2*m/b is a time",
+      "seconds": 0.0
+    },
+    {
+      "check_id": "04_eq4_corrected_decay_units",
+      "role": "correction",
+      "claim": "4",
+      "verdict": "HOLDS",
+      "evidence": "symbolic",
+      "engine": "python",
+      "script": "verify/checks/04_eq4_corrected_decay_units.py",
+      "detail": "[2m/b] = T",
       "seconds": 0.0
     }
   ]

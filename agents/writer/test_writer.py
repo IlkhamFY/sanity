@@ -51,8 +51,11 @@ def test_example_run_keeps_script_verdicts():
     telegram = (run / "telegram.md").read_text(encoding="utf-8")
     status = json.loads((run / "status.json").read_text(encoding="utf-8"))
     equations = json.loads((run / "equations.json").read_text(encoding="utf-8"))
-    for verdict in ("VERIFIED", "FAILED"):
+    # RESULTS.md uses the Verifier's HOLDS/FAILS names; REPORT.md still uses the old ones
+    # until the Writer is updated to read verify/verdicts.json.
+    for verdict in ("HOLDS", "FAILS"):
         assert verdict in results
+    for verdict in ("VERIFIED", "FAILED"):
         assert verdict in report
     assert "FAILED" in telegram
     assert "typo" in report.lower()

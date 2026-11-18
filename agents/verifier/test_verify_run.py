@@ -242,4 +242,5 @@ def test_specimen_run_gives_verdicts_and_a_verified_correction(tmp_path):
         "script": "verify/checks/03_eq4_decay_units.py",
         "detail": "[b/m] = M0 L0 T-1, not T; 2*m/b is a time",
     }
-    assert claims["4"]["correction"] is None
+    assert claims["4"]["correction"]["latex"] == r"\tau=2m/b"
+    assert claims["4"]["correction"]["verified"] is True
