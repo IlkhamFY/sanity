@@ -19,35 +19,41 @@ export function mount(katex) {
   let timers = [];
 
   const steps = [
-    { at: 400, run: () => say("Reading the note.") },
-    { at: 1500, run: () => say("Five equations.") },
+    { at: 400, run: () => say("Reader. Reading the note.") },
+    { at: 1400, run: () => say("Reader. Five equations.") },
     {
-      at: 2700,
+      at: 2500,
       run: () => {
         dimOthers("3");
-        say("One step does not hold.");
+        say("Verifier. One step does not hold.");
       },
     },
     {
-      at: 3900,
+      at: 3700,
+      run: () => {
+        say("Verifier. Proved in Lean.");
+      },
+    },
+    {
+      at: 4900,
       run: () => {
         showCard();
-        say("The spring term was missing a half.");
-      },
-    },
-    {
-      at: 5300,
-      run: () => {
         reveal("badge");
-        say("Proved in Lean.");
+        say("Writer. The spring term was missing a half.");
       },
     },
     {
-      at: 6600,
+      at: 6400,
+      run: () => {
+        document.querySelector('[data-eq="4"]').classList.add("is-focus");
+        say("Verifier. One more step fails on units.");
+      },
+    },
+    {
+      at: 7600,
       run: () => {
         reveal("also");
-        document.querySelector('[data-eq="4"]').classList.add("is-focus");
-        say("Proved in Lean. One more step fails on units.");
+        say("Writer. The decay time is 2m/b.");
       },
     },
   ];
@@ -120,7 +126,7 @@ export function mount(katex) {
     steps.forEach((step) => {
       timers.push(window.setTimeout(step.run, step.at));
     });
-    timers.push(window.setTimeout(finish, 7200));
+    timers.push(window.setTimeout(finish, 8400));
   }
 
   buttons.forEach((button) => {

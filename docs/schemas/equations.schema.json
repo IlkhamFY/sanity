@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sanity.local/schemas/equations.schema.json",
+  "title": "Reader equations",
+  "description": "What the Reader writes to runs/<paper-slug>/equations.json. The Verifier does not edit this file.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["slug", "source", "equations"],
+  "properties": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "description": "Directory name under runs/."
+    },
+    "title": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Path or label of the PDF or LaTeX the equations were lifted from."
+    },
+    "equations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["number", "line", "latex"],
+        "properties": {
+          "number": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Equation number as printed in the paper."
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "1-based source line of the displayed equation."
+          },
+          "latex": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

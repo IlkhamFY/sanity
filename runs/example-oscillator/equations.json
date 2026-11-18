@@ -1,0 +1,32 @@
+{
+  "slug": "example-oscillator",
+  "title": "A spring, missing a half",
+  "source": "runs/example-oscillator/note.tex",
+  "equations": [
+    {
+      "number": "1",
+      "line": 7,
+      "latex": "m\\ddot{x}=-kx"
+    },
+    {
+      "number": "2",
+      "line": 12,
+      "latex": "m\\dot{x}\\,\\ddot{x}+kx\\dot{x}=0"
+    },
+    {
+      "number": "3",
+      "line": 17,
+      "latex": "E=\\tfrac{1}{2}mv^{2}+kx^{2}"
+    },
+    {
+      "number": "4",
+      "line": 22,
+      "latex": "\\tau=b/m"
+    },
+    {
+      "number": "5",
+      "line": 27,
+      "latex": "\\omega_{0}=\\sqrt{k/m}"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sanity.local/schemas/status.schema.json",
+  "title": "Run status",
+  "description": "runs/<paper-slug>/status.json. Only the bot that owns the current stage writes it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["paper", "stage", "owner_bot", "updated_at", "commit", "notes"],
+  "properties": {
+    "paper": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Paper slug. Matches the directory name under runs/."
+    },
+    "stage": {
+      "type": "string",
+      "enum": ["reader", "verifier", "writer", "done"],
+      "description": "Who may write next. done means the Writer has published the report."
+    },
+    "owner_bot": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Role or bot name that owns this stage."
+    },
+    "updated_at": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ISO-8601 timestamp of the last handoff write."
+    },
+    "commit": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Git commit the owner is publishing with this status, or a specimen label."
+    },
+    "notes": {
+      "type": "string",
+      "description": "One short note for the next bot. Not a verdict."
+    }
+  }
+}

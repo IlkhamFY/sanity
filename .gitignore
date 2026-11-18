@@ -8,4 +8,4 @@ __pycache__/
 build/
 *.olean
 .DS_Store
-agents/checker/verify/RESULTS.md
+agents/verifier/verify/RESULTS.md

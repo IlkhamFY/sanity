@@ -1,6 +1,0 @@
-name = "sanity-checker"
-version = "0.1.0"
-defaultTargets = ["Sanity"]
-
-[[lean_lib]]
-name = "Sanity"

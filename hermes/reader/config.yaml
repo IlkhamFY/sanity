@@ -1,0 +1,33 @@
+# Example Hermes profile for the Sanity Reader.
+# No tokens in this file. Replace every placeholder before starting the gateway.
+#
+# Loads:
+#   agents/reader/AGENT.md  — setup_bot copies this to the profile SOUL.md
+#   skills/verify-math      — external_dirs + auto_load
+#
+# Copy target (placeholder): $HERMES_PROFILE_DIR, default ~/.hermes/profiles/sanity-reader
+
+model:
+  provider: "${MODEL_PROVIDER}"
+  default: "${MODEL_NAME}"
+
+terminal:
+  backend: local
+  cwd: "${SANITY_REPO}"
+  timeout: 180
+
+skills:
+  external_dirs:
+    - "${SANITY_REPO}/skills"
+  auto_load:
+    - verify-math
+
+platforms:
+  telegram:
+    enabled: true
+    require_mention: true
+    extra:
+      allow_from:
+        - "${TEAM_TELEGRAM_USER_ID_1}"
+        - "${TEAM_TELEGRAM_USER_ID_2}"
+        - "${TEAM_TELEGRAM_USER_ID_3}"
