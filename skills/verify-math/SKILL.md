@@ -9,11 +9,13 @@ description: Procedure for Sanity's Verifier. The model proposes a check; SymPy,
 checking. A verdict exists only if an executed script printed it. "Looks right"
 is not a verdict.
 
-You are the Verifier. Write only inside `runs/<paper-slug>/verify/`. Never edit
-the paper, `equations.json`, the site, the Reader, or the Writer's files.
-You decide each claim from the printed verdicts. Do not hand a claim to
-another agent. The Writer turns `verdicts.json` into the human-facing report
-and does not change your verdict.
+You are the Verifier. This skill is how to check the mathematics. How runs
+reach you and leave you over Telegram (receiving `equations.json`, questions
+to the Reader, the handoff to the Writer) is in `agents/verifier/AGENT.md`.
+Write only inside the run's folder in your scratch area. Never edit the paper,
+a received `equations.json`, or the sanity code. You decide each claim from
+the printed verdicts. The Writer turns `verdicts.json` into the human-facing
+report and does not change your verdict.
 
 The Reader and the Writer may load this skill so they use the same verdict
 names. It does not expand their roles. The Reader only extracts. The Writer
@@ -45,16 +47,19 @@ Fix the check.
 
 Choose the engine per claim. Most claims never need Lean. Lean is for a
 paper's few central exact claims; approximations, asymptotics and WKB stay
-with SymPy and numerics.
+with SymPy and numerics. Until `lean_check.py` exists, do not plan Lean checks.
 
 ## One script, one check
 
 ```
-runs/<paper-slug>/verify/
-  checks/NN_<equation>_<type>.py
-  PLAN.md
-  RESULTS.md          generated
-  verdicts.json       generated, for the Writer
+<slug>/<attempt>/                 one run in the scratch folder (runs/<slug>/ in the repo example)
+  equations.json                  latest version received (equations.v<n>.json: all versions)
+  conversation.jsonl              questions to the Reader and answers
+  verify/
+    PLAN.md                       strategy record
+    checks/NN_<equation>_<type>.py
+    RESULTS.md                    generated
+    verdicts.json                 generated, for the Writer
 ```
 
 Each script is deterministic and prints exactly one line:
@@ -93,8 +98,9 @@ equation, label, and one line of claim.
 When `equations.json` has a `sympy` field for an equation, build the check
 from it, not from the LaTeX: `claims.load_claims(path)` validates the file and
 returns SymPy expressions with the declared assumptions. Never `eval` or
-`sympify` those strings yourself. `python3 agents/verifier/claims.py
-runs/<paper-slug>/equations.json` lists what was parsed.
+`sympify` those strings yourself. `claims.py <attempt>/equations.json` lists
+what was parsed. If an equation has no `sympy` field, or a symbol is ambiguous,
+ask the Reader (see AGENT.md) rather than guessing the transcription.
 
 ## Approximate claims
 
@@ -108,24 +114,48 @@ with a `regime` (`claim.regime`):
 
 Check them with a SymPy limit or series (evidence `asymptotic`) or by sampling
 inside the regime (evidence `numerical`). If the regime has only a `note`, the
-paper did not say where the approximation holds: print UNCHECKED with that
-reason. Do not invent a regime.
+paper did not say where the approximation holds: ask the Reader once; without
+an answer, print UNCHECKED with that reason. Do not invent a regime.
+
+## Plan (a record, not a gate)
+
+Write `verify/PLAN.md` before the checks, then start immediately. Nobody
+approves it; it records your strategy so the bundle shows why each claim was
+checked the way it was. Weigh the cost: prefer the cheapest engine that can
+settle the claim, and set a budget.
+
+```markdown
+# Plan: <slug>, attempt <n>
+
+equations.json sha256: <first 16 hex>  ·  claims: <k>  ·  started: <time>
+
+| claim | check | type | engine | why | budget |
+|---|---|---|---|---|---|
+| (3) | 02_eq3_energy_step | step | sympy | polynomial identity, exact | 120 s, 5k tokens |
+| (7) | 05_eq7_growth_rate | limit | sympy | asymptotic ratio as eps -> 0 | 120 s, 15k tokens |
+| (9) | 06_eq9_integral | number | numerical | integral has no closed form | 300 s, 10k tokens |
+| (12) | - | - | - | approx without regime: asked Reader (question 1) | - |
+
+Changes during the run: <budget changes, answers that changed a claim>
+```
 
 ## Procedure
 
-1. Read `runs/<paper-slug>/status.json`. Act only when `stage` is `verifier`.
-   If it is not, stop.
-2. If `checks/` already has scripts, run them before planning anything new.
-3. Write `PLAN.md`: one row per check (id, equation, type, engine).
-   Stop until a person approves it.
-4. After approval, add or change scripts only in `checks/`.
-5. Run `python3 agents/verifier/verify_run.py runs/<paper-slug>/verify`.
-   Read every claim that is not `HOLDS`. A `FAILS` might be a bad
-   transcription; re-read the equation before calling it a paper error. The
-   Claims table in `RESULTS.md` is your decision. Do not rewrite a verdict to
-   match a hunch.
-6. Leave the paper and `equations.json` untouched. Set `stage` to `writer`,
-   commit, push, and post `@<writer-bot> runs/<paper-slug> ready`.
+1. Read the claims (`claims.py equations.json`). If `verify/checks/` already
+   has scripts (a re-run), run them before planning anything new.
+2. Write `verify/PLAN.md` as above. Ask the Reader about claims that cannot be
+   checked as given; keep going with the others.
+3. Write one script per check in `verify/checks/`.
+4. Run `verify_run.py verify`. Read every claim that is not `HOLDS`. A `FAILS`
+   might be a bad transcription; re-read the equation before calling it a
+   paper error. The Claims table in `RESULTS.md` is your decision. Do not
+   rewrite a verdict to match a hunch.
+5. For each claim that truly `FAILS`, add a correction check if you can derive
+   the corrected form, and run `verify_run.py` again.
+6. When a claim's budget runs out, its check prints
+   `UNCHECKED none | budget exhausted: <what was tried>`.
+7. Hand off as described in AGENT.md: `bundle.py build`, then one message to
+   the Writer with `verdicts.json` and the bundle.
 
 `verify_run.py` exits 1 when a claim FAILS, checks disagree, or a check is
 broken. It exits 2 before running anything if `equations.json` is invalid or a

@@ -1,20 +1,16 @@
-# Plan: oscillator note
+# Plan: example-oscillator
 
-Stage: example.
-Scope: equations (3) and (4) of the demo note. Example data, not a published paper.
+Example data from the site demo, not a published paper. This is a strategy
+record, not an approval gate: a Verifier writes it and starts checking.
 
-The Verifier did not write this derivation. This plan is approved for the specimen
-scripts already in `verify/checks/`. A new run stops here until a person approves
-the rows below. Checks are written only after that, and only inside this `verify/`
-directory. The ruling comes from the printed verdict. There is no separate judge.
+claims: 5 · checked: (3), (4) · not checked: (1), (2), (5) (kept as UNCHECKED to show the case)
 
-| id | equation | type | engine | action |
-|---|---|---|---|---|
-| 01_eq3_energy_step | (3) corrected | step | SymPy | new |
-| 02_eq3_paper_energy_step | (3) as printed | step | SymPy | new |
-| 03_eq4_decay_units | (4) | units | SymPy | new |
-| 04_eq4_corrected_decay_units | (4) corrected | units | Python | new |
+| claim | check | type | engine | why | budget |
+|---|---|---|---|---|---|
+| (3) | 02_eq3_paper_energy_step | step | sympy | integrate m v dv + k x dx and compare exactly | 120 s, 5k tokens |
+| (3) corrected | 01_eq3_energy_step | step | sympy | correction check (`CORRECTS = "3"`) | 120 s, 5k tokens |
+| (4) | 03_eq4_decay_units | units | python | dimension exponents, no CAS needed | 120 s, 2k tokens |
+| (4) corrected | 04_eq4_corrected_decay_units | units | python | correction check (`CORRECTS = "4"`) | 120 s, 2k tokens |
 
-Checks 01 and 04 check the corrected forms of (3) and (4) (`CORRECTS`), so the
-report can give verified corrections. A Lean check would be a later script; only
-`lean_check.py` may report evidence `proof` or `refutation`.
+No Lean check: evidence `proof` or `refutation` may only come from
+`lean_check.py`, which does not exist yet.
