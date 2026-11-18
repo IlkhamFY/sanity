@@ -8,11 +8,199 @@
       name="description"
       content="Your paper's math, double-checked. Sanity reads the equations, reworks them, and proves the doubtful steps."
     />
-    <meta name="theme-color" content="#070d16" />
+    <meta name="theme-color" content="#12263a" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="./src/main.jsx"></script>
+    <a class="skip" href="#demo">Skip to the demo</a>
+    <div class="sheen" aria-hidden="true"></div>
+
+    <main>
+      <section class="hero" id="top" aria-labelledby="pitch">
+        <img
+          class="lockup"
+          src="./brand/logo-dark.svg"
+          width="466"
+          height="128"
+          alt="Sanity"
+        />
+        <h1 id="pitch">Your paper's math, double-checked.</h1>
+        <button type="button" class="run-demo" data-scroll="demo" aria-describedby="demo-note">
+          Run the demo
+        </button>
+      </section>
+
+      <section class="agents" aria-labelledby="agents-title">
+        <h2 id="agents-title" class="sr-only">Three agents</h2>
+        <ol class="trio">
+          <li>
+            <svg class="glyph" viewBox="0 0 48 48" aria-hidden="true">
+              <circle cx="16" cy="18" r="5.5" />
+              <path d="M10 34c1.4-5 3.6-7 6-7s4.6 2 6 7" />
+              <path d="M28 14h12v16H28z" />
+              <path d="M31 19h6M31 23h6" />
+            </svg>
+            <h3>Reader</h3>
+            <p>Reads the paper and lifts out every equation.</p>
+          </li>
+          <li>
+            <svg class="glyph" viewBox="0 0 48 48" aria-hidden="true">
+              <circle cx="24" cy="15" r="5.5" />
+              <path d="M16 34c1.6-6 4.2-8 8-8s6.4 2 8 8" />
+              <path d="M19 14.2h10M19 17.4h10" />
+            </svg>
+            <h3>Verifier</h3>
+            <p>Gives the verdict. Lean proves a step that looks wrong.</p>
+          </li>
+          <li>
+            <svg class="glyph" viewBox="0 0 48 48" aria-hidden="true">
+              <path d="M12 14h16l6 6v16H12z" />
+              <path d="M28 14v6h6" />
+              <path d="M16 26h12M16 31h8" />
+            </svg>
+            <h3>Writer</h3>
+            <p>Writes the summary, and a correction for the authors.</p>
+          </li>
+        </ol>
+        <p class="aside">A few people can watch along in Telegram.</p>
+      </section>
+
+      <section class="demo" id="demo" aria-labelledby="demo-title">
+        <p class="eyebrow" id="demo-note">Example data. Not a real paper.</p>
+        <h2 id="demo-title">A spring, missing a half.</h2>
+        <button type="button" class="run-demo" aria-describedby="demo-note">Run the demo</button>
+
+        <article class="note" aria-label="Example note">
+          <div class="eq" data-eq="1">
+            <span class="ln">(1)</span>
+            <div class="math" data-tex="m\ddot{x}=-kx"></div>
+          </div>
+          <div class="eq" data-eq="2">
+            <span class="ln">(2)</span>
+            <div class="math" data-tex="m\dot{x}\,\ddot{x}+kx\dot{x}=0"></div>
+          </div>
+          <div class="eq" data-eq="3">
+            <span class="ln">(3)</span>
+            <div class="math" data-tex="E=\tfrac{1}{2}mv^{2}+kx^{2}"></div>
+          </div>
+
+          <div class="card glass" data-fix="3" hidden>
+            <div class="compare">
+              <div>
+                <p class="side">Wrong</p>
+                <div class="math" data-tex="E=\tfrac{1}{2}mv^{2}+kx^{2}"></div>
+              </div>
+              <div>
+                <p class="side">Right</p>
+                <div class="math" data-tex="E=\tfrac{1}{2}mv^{2}+\tfrac{1}{2}kx^{2}"></div>
+              </div>
+            </div>
+            <p class="badge" data-part="badge" hidden>Proved in Lean</p>
+            <p class="also" data-part="also" hidden>
+              One more. <span class="math" data-tex="\tau=b/m" data-display="inline"></span>
+              is a rate, not a time. The decay time is
+              <span class="math" data-tex="2m/b" data-display="inline"></span>.
+            </p>
+          </div>
+
+          <div class="eq" data-eq="4">
+            <span class="ln">(4)</span>
+            <div class="math" data-tex="\tau=b/m"></div>
+          </div>
+          <div class="eq" data-eq="5">
+            <span class="ln">(5)</span>
+            <div class="math" data-tex="\omega_{0}=\sqrt{k/m}"></div>
+          </div>
+        </article>
+
+        <p id="status" class="status" aria-live="polite"></p>
+      </section>
+
+      <section class="built" aria-labelledby="built-title">
+        <!--
+          Marks: Simple Icons (CC0) for Python, SymPy, LaTeX, Telegram, Vite, Cursor, GitHub.
+          Lean wordmark from lean-lang.org. KaTeX wordmark from katex.org.
+          Mathlib and Hermes Agent have no small official mark here, so they stay as names.
+        -->
+        <h2 id="built-title">Built with</h2>
+        <ul class="marks">
+          <li>
+            <a class="mark" style="--brand:#4B8BBE" href="https://www.python.org/" target="_blank" rel="noopener noreferrer">
+              <span class="icon" style="--src:url('logos/python.svg')"></span>
+              <span>Python</span>
+            </a>
+          </li>
+          <li>
+            <a class="mark" style="--brand:#8FB56A" href="https://www.sympy.org/" target="_blank" rel="noopener noreferrer">
+              <span class="icon" style="--src:url('logos/sympy.svg')"></span>
+              <span>SymPy</span>
+            </a>
+          </li>
+          <li>
+            <a class="mark" style="--brand:#6B97F0" href="https://lean-lang.org/" target="_blank" rel="noopener noreferrer">
+              <span class="icon word-lean" style="--src:url('logos/lean.svg')"></span>
+              <span>Lean 4</span>
+            </a>
+          </li>
+          <li>
+            <a class="mark" style="--brand:#f3efe6" href="https://github.com/leanprover-community/mathlib4" target="_blank" rel="noopener noreferrer">
+              <span class="wordname">Mathlib</span>
+              <span>Lean</span>
+            </a>
+          </li>
+          <li>
+            <a class="mark" style="--brand:#f3efe6" href="https://katex.org/" target="_blank" rel="noopener noreferrer">
+              <span class="icon word-katex" style="--src:url('logos/katex.svg')"></span>
+              <span>KaTeX</span>
+            </a>
+          </li>
+          <li>
+            <a class="mark" style="--brand:#3CBCBC" href="https://www.latex-project.org/" target="_blank" rel="noopener noreferrer">
+              <span class="icon" style="--src:url('logos/latex.svg')"></span>
+              <span>LaTeX</span>
+            </a>
+          </li>
+          <li>
+            <a class="mark" style="--brand:#26A5E4" href="https://telegram.org/" target="_blank" rel="noopener noreferrer">
+              <span class="icon" style="--src:url('logos/telegram.svg')"></span>
+              <span>Telegram</span>
+            </a>
+          </li>
+          <li>
+            <a class="mark" style="--brand:#f3efe6" href="https://nousresearch.com/" target="_blank" rel="noopener noreferrer" aria-label="Hermes Agent, Nous Research">
+              <span class="wordname">Hermes</span>
+              <span>Nous</span>
+            </a>
+          </li>
+          <li>
+            <a class="mark" style="--brand:#C084FC" href="https://vite.dev/" target="_blank" rel="noopener noreferrer">
+              <span class="icon" style="--src:url('logos/vite.svg')"></span>
+              <span>Vite</span>
+            </a>
+          </li>
+          <li>
+            <a class="mark" style="--brand:#f3efe6" href="https://cursor.com/" target="_blank" rel="noopener noreferrer">
+              <span class="icon" style="--src:url('logos/cursor.svg')"></span>
+              <span>Cursor</span>
+            </a>
+          </li>
+          <li>
+            <a class="mark" style="--brand:#f3efe6" href="https://github.com/" target="_blank" rel="noopener noreferrer">
+              <span class="icon" style="--src:url('logos/github.svg')"></span>
+              <span>GitHub</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="colophon">
+      <p>Sanity · MIT</p>
+    </footer>
+
+    <noscript>
+      <p class="noscript">JavaScript typesets the math and plays the demo.</p>
+    </noscript>
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>

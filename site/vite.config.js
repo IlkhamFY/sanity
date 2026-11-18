@@ -1,8 +1,6 @@
 import { createReadStream, statSync, cpSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -28,8 +26,6 @@ export default defineConfig({
   server: { host: "0.0.0.0", port: 4317, strictPort: true },
   preview: { host: "0.0.0.0", port: 4317, strictPort: true },
   plugins: [
-    tailwindcss(),
-    react(),
     {
       name: "brand-assets",
       configureServer(server) {
