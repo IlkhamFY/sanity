@@ -1,0 +1,45 @@
+{
+  "paper": "example-oscillator",
+  "generated_at": "2026-11-18T12:22:07",
+  "commit": "3e4c4fd",
+  "counts": {
+    "Lean-PROVED": 0,
+    "VERIFIED": 1,
+    "VERIFIED-NUMERICALLY": 0,
+    "FAILED": 2,
+    "UNCHECKED": 0,
+    "ERROR": 0
+  },
+  "verdicts": [
+    {
+      "check_id": "01_eq3_energy_step",
+      "claim": null,
+      "verdict": "VERIFIED",
+      "ruling": null,
+      "engine": "sympy",
+      "script": "verify/checks/01_eq3_energy_step.py",
+      "detail": "symbolic: simplify(lhs - rhs) == 0",
+      "seconds": 0.2
+    },
+    {
+      "check_id": "02_eq3_paper_energy_step",
+      "claim": "3",
+      "verdict": "FAILED",
+      "ruling": "confirmed",
+      "engine": "sympy",
+      "script": "verify/checks/02_eq3_paper_energy_step.py",
+      "detail": "at m=k=v=x=1: printed 3/2, integral 1, gap k*x**2/2",
+      "seconds": 0.3
+    },
+    {
+      "check_id": "03_eq4_decay_units",
+      "claim": "4",
+      "verdict": "FAILED",
+      "ruling": "confirmed",
+      "engine": "python",
+      "script": "verify/checks/03_eq4_decay_units.py",
+      "detail": "[b/m] = M0 L0 T-1, not T; 2*m/b is a time",
+      "seconds": 0.0
+    }
+  ]
+}
