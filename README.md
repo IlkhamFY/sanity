@@ -11,7 +11,6 @@
   <a href="https://ilkhamfy.github.io/sanity/"><img alt="live site" src="https://img.shields.io/badge/site-live-6e675f?style=flat-square"></a>
   <a href="https://ilkhamfy.github.io/sanity/demo.html"><img alt="demo" src="https://img.shields.io/badge/demo-live-6e675f?style=flat-square"></a>
   <a href="https://ilkhamfy.github.io/sanity/papers.html"><img alt="Checked papers" src="https://img.shields.io/badge/Checked%20papers-live-6e675f?style=flat-square"></a>
-  <a href="https://arxiv.org/abs/2410.11128"><img alt="arXiv 2410.11128" src="https://img.shields.io/badge/arXiv-2410.11128-6e675f?style=flat-square"></a>
 </p>
 
 Sanity checks the equations in a paper.
