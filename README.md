@@ -1,29 +1,108 @@
-# Sanity
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/banner-light.svg">
+    <img alt="SANITY. Check the math before you trust it." src="docs/assets/banner.svg" width="1200">
+  </picture>
+</p>
 
-Sanity checks the equations in a paper. A Reader lifts each displayed equation. A Verifier re-derives it in SymPy, and can add a Lean proof when the claim can be stated. A Writer turns those script verdicts into a report. A verdict exists only if a check script printed it: `HOLDS`, `FAILS`, or `UNCHECKED`. The Writer does not change one.
+<p align="center">
+  <a href="#quickstart"><img alt="tests" src="https://img.shields.io/badge/tests-pytest-6e675f?style=flat-square"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/IlkhamFY/sanity?style=flat-square&color=6e675f"></a>
+  <a href="https://ilkhamfy.github.io/sanity/"><img alt="live site" src="https://img.shields.io/badge/site-live-6e675f?style=flat-square"></a>
+  <a href="https://ilkhamfy.github.io/sanity/demo.html"><img alt="demo" src="https://img.shields.io/badge/demo-live-6e675f?style=flat-square"></a>
+  <a href="https://arxiv.org/abs/2410.11128"><img alt="arXiv 2410.11128" src="https://img.shields.io/badge/arXiv-2410.11128-6e675f?style=flat-square"></a>
+</p>
 
-The three bots share one Telegram group and talk to each other there. Bot-to-Bot Communication Mode is on, so a bot sees the others' messages. Each machine message starts with `sanity run=<slug>` and names who should act with `to=<role>` (`to=reader`, `to=verifier`, `to=writer`). The Verifier posts a plan and a time estimate at the start of a run, before any check, then one handoff `to=writer` when the verdicts are in. Files travel as Telegram attachments; each bot keeps its own working copies. The whole message protocol is the shared skill [skills/sanity-protocol/SKILL.md](skills/sanity-protocol/SKILL.md). See also [agents/verifier/AGENT.md](agents/verifier/AGENT.md) and [docs/setup-verifier-docker.md](docs/setup-verifier-docker.md).
+Sanity checks the equations in a paper.
 
-On [arXiv:2410.11128v1](https://arxiv.org/abs/2410.11128v1), Eq. (4.4) prints the wrong horizon angular velocity. Sanity flags it and proposes the same replacement the authors later recorded. The run is [runs/arxiv-2410-11128/](runs/arxiv-2410-11128/). The page is <https://ilkhamfy.github.io/sanity/demo.html>.
+A Reader lifts each displayed equation. A Verifier re-derives it in SymPy, and can add a Lean proof when the claim can be stated. A Writer turns those script verdicts into a report.
 
-`runs/example-oscillator/` is a toy note with two planted errors. The front page plays that note.
+A verdict exists only if a check script printed it: `HOLDS`, `FAILS`, or `UNCHECKED`. The Writer does not change one.
+
+The three bots share one Telegram group and talk to each other there. Bot-to-Bot Communication Mode is on, so a bot sees the others' messages. Each machine message starts with `sanity run=<slug>` and names who should act with `to=<role>` (`to=reader`, `to=verifier`, `to=writer`).
+
+The Verifier posts a plan and a time estimate at the start of a run, before any check. It then sends one handoff `to=writer` when the verdicts are in. Files travel as Telegram attachments. Each bot keeps its own working copies.
+
+The whole message protocol is the shared skill [skills/sanity-protocol/SKILL.md](skills/sanity-protocol/SKILL.md). See also [agents/verifier/AGENT.md](agents/verifier/AGENT.md) and [docs/setup-verifier-docker.md](docs/setup-verifier-docker.md).
+
+## Built with
+
+<p align="center">
+  <a href="https://www.python.org/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/logos/python-dark.svg"><img alt="Python" height="32" src="docs/assets/logos/python-light.svg"></picture></a>
+  &nbsp;&nbsp;
+  <a href="https://www.sympy.org/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/logos/sympy-dark.svg"><img alt="SymPy" height="32" src="docs/assets/logos/sympy-light.svg"></picture></a>
+  &nbsp;&nbsp;
+  <a href="https://lean-lang.org/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/logos/lean-dark.svg"><img alt="Lean 4" height="32" src="docs/assets/logos/lean-light.svg"></picture></a>
+  &nbsp;&nbsp;
+  <a href="https://telegram.org/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/logos/telegram-dark.svg"><img alt="Telegram" height="32" src="docs/assets/logos/telegram-light.svg"></picture></a>
+  &nbsp;&nbsp;
+  <a href="https://hermes-agent.nousresearch.com/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/logos/hermes-dark.svg"><img alt="Hermes Agent" height="32" src="docs/assets/logos/hermes-light.svg"></picture></a>
+  &nbsp;&nbsp;
+  <a href="https://www.docker.com/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/logos/docker-dark.svg"><img alt="Docker" height="32" src="docs/assets/logos/docker-light.svg"></picture></a>
+  &nbsp;&nbsp;
+  <a href="https://vite.dev/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/logos/vite-dark.svg"><img alt="Vite" height="32" src="docs/assets/logos/vite-light.svg"></picture></a>
+  &nbsp;&nbsp;
+  <a href="https://katex.org/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/logos/katex-dark.svg"><img alt="KaTeX" height="32" src="docs/assets/logos/katex-light.svg"></picture></a>
+  &nbsp;&nbsp;
+  <a href="https://www.latex-project.org/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/logos/latex-dark.svg"><img alt="LaTeX" height="32" src="docs/assets/logos/latex-light.svg"></picture></a>
+  &nbsp;&nbsp;
+  <a href=".github/workflows/pages.yml"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/logos/github-dark.svg"><img alt="GitHub Actions and GitHub Pages" height="32" src="docs/assets/logos/github-light.svg"></picture></a>
+</p>
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-  paper["PDF or LaTeX, from a person"] --> reader["Reader bot"]
-  reader -->|"to=verifier + equations.json"| sympy["Verifier: SymPy, asymptotics or sampling, per claim"]
-  sympy -->|"central exact claims, or on request"| lean["Lean 4 proves the claim or its negation"]
-  sympy --> verdicts["verdicts.json: HOLDS, FAILS, UNCHECKED + evidence"]
-  lean --> verdicts
-  sympy -.->|"to=reader question (optional)"| reader
-  verdicts -->|"to=writer + equations.json, verdicts.json, bundle"| writer["Writer bot"]
-  writer -->|"status=done + REPORT.md"| group["Telegram group"]
-  group --- humans["Three people"]
+  paper["PDF or LaTeX, from a person"] --> reader["Reader"]
+  reader -->|"to=verifier"| verifier["Verifier, SymPy + Lean"]
+  verifier --> verdicts["verdicts.json"]
+  verdicts -->|"to=writer"| writer["Writer"]
+  writer -->|"REPORT.md"| group["Telegram group"]
+  group --> people["Three people"]
+  writer --> publish["publish_run.py"]
+  publish --> site["Live site"]
+  publish --> activity["activity.json"]
 ```
 
-The group is the handoff: every message names its target with `to=<role>`, and files travel as attachments. A status line has no `to=`, so it wakes no bot. Lean is extra evidence for a few central exact claims, always after SymPy: a Lean `proof` or `refutation` outranks a SymPy result for the same claim. The Writer does not get a vote on the verdict.
+<p align="center">
+  <img src="docs/assets/handoff.gif" alt="A message moves from Reader to Verifier to Writer. A bar fills, then reads FAILS." width="720">
+</p>
+
+The group is the handoff. Every message names its target with `to=<role>`, and files travel as attachments. A status line has no `to=`, so it wakes no bot. The Reader sends `equations.json`. The Verifier sends `verdicts.json` and the evidence bundle. SymPy checks a claim exactly, by asymptotics, or by sampling. Lean is extra evidence for a few central exact claims, always after SymPy, and only when the claim can be stated. A Lean `proof` or `refutation` outranks a SymPy result for the same claim. The Verifier may ask the Reader a question. The Writer does not get a vote on the verdict.
+
+The square in the picture is a message on that group. The bar is a verdict. A verdict counts only if a check script printed it. `publish_run.py` is the loop back to the site. It is in [pull request #20](https://github.com/IlkhamFY/sanity/pull/20), not on `main` yet.
+
+## Eq. (4.4)
+
+On [arXiv:2410.11128v1](https://arxiv.org/abs/2410.11128v1), Eq. (4.4) prints the wrong horizon angular velocity. Sanity flags it and proposes the same replacement the authors later recorded. The run is [runs/arxiv-2410-11128/](runs/arxiv-2410-11128/). The page is <https://ilkhamfy.github.io/sanity/demo.html>.
+
+<p align="center">
+  <img src="docs/assets/demo-eq44.png" alt="Demo page for arXiv:2410.11128v1. Equation (4.4) is marked FAILS, with the corrected angular velocity." width="880">
+</p>
+
+Printed in v1:
+
+$$\Omega=\frac{c r_{+}}{a(r_{+}+r_{-})}$$
+
+Corrected:
+
+$$\Omega=\frac{c r_{-}}{a(r_{+}+r_{-})}$$
+
+At $r_{+}=2$, $r_{-}=1$, $a=\sqrt{2}$, $c=1$ the printed value is $\sqrt{2}/3$ and the horizon value is $\sqrt{2}/6$. The ratio is $r_{+}/r_{-}$. The two agree only when $r_{+}=r_{-}$.
+
+The corrected clause was checked on its own. It holds.
+
+```text
+simplify(corrected - c*a/(r_plus**2+a**2)) == 0 for a**2=r_plus*r_minus
+```
+
+`runs/example-oscillator/` is a toy note with two planted errors. The front page plays that note.
+
+## Self-evolving
+
+[`scripts/publish_run.py`](https://github.com/IlkhamFY/sanity/blob/cursor/papers-index-3e17/scripts/publish_run.py) publishes a run into the public papers index. It copies the equations, the verdicts, and the report, updates that paper's row, and appends to `activity.json`. Running it again updates the same row. Verdicts in the row still come only from check scripts.
+
+The script is [pull request #20](https://github.com/IlkhamFY/sanity/pull/20). It is not merged yet. Until it is, the live site is the front page: <https://ilkhamfy.github.io/sanity/>.
 
 ## Roles
 
@@ -33,7 +112,7 @@ The group is the handoff: every message names its target with `to=<role>`, and f
 | Verifier | `verdicts.json` and an evidence bundle (checks, `PLAN.md`, `RESULTS.md`), to the Writer | open the paper, edit the extraction, or write the report |
 | Writer | `REPORT.md` and its summary, to the group (`status=done`) | change a verdict, or check the math itself |
 
-Role prompts: `agents/reader/AGENT.md`, `agents/verifier/AGENT.md`, `agents/writer/AGENT.md`.
+Role prompts: `agents/reader/AGENT.md`, `agents/verifier/AGENT.md`, `agents/writer/AGENT.md`. The Writer prompt also asks for `RESULT.html`, built from `REPORT.md` and `telegram.md`.
 
 ## Repository
 
