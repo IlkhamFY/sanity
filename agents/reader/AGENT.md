@@ -58,7 +58,7 @@ Choose a short slug for the paper, of lowercase letters, digits, and hyphens. It
 
 Follow the `sanity-protocol` skill. All communication goes through the Telegram group. There is no git step for you.
 
-If the paper has an arXiv id or a DOI, run `python scripts/fetch_paper.py <id>` first. Post `runs/<slug>/source/meta.json` as a second document right after `equations.json` (Telegram allows one file per message). With no id, skip this; the publisher files the run under Examples.
+Always run `python scripts/fetch_paper.py` first, with the id if there is one (`python scripts/fetch_paper.py <id>`) and otherwise with the pasted file path (`python scripts/fetch_paper.py path/to/paper.pdf --slug <slug>`). Always post `runs/<slug>/source/meta.json` as its own document right after `equations.json` (Telegram allows one file per message). With no arXiv id or DOI the file is an example; the publisher files the run under Examples.
 
 1. When the extraction is done, send message 2 as your final reply:
    `sanity run=<slug> to=verifier stage=verifier equations_sha256=<sha256 of the file>`,

@@ -121,7 +121,7 @@ echo "  backups: *.bak-$STAMP next to SOUL.md, config.yaml, .env"
 if [ -n "$KEEP_SOUL" ]; then
   echo "  persona: kept (KEEP_SOUL=1). Merge the communication parts of $REPO/agents/$ROLE/AGENT.md by hand:"
   case "$ROLE" in
-    reader) echo "    Inputs, Outputs, the last line of Boundaries, Handoff (fetch_paper.py, then meta.json as its own document)" ;;
+    reader) echo "    Inputs, Outputs, the last line of Boundaries, Handoff (always fetch_paper.py, including a pasted file, then meta.json as its own document)" ;;
     writer) echo "    the Role line, the paragraph before step 1, step 6, the first four Boundaries lines" ;;
     verifier) echo "    the Messages section and section 4" ;;
   esac
@@ -202,7 +202,7 @@ if head -n "$n" "$SOUL" 2>/dev/null | cmp -s - "$REPO/agents/$ROLE/AGENT.md"; th
 elif grep -q "sanity-protocol" "$SOUL" 2>/dev/null && grep -q "NO_REPLY" "$SOUL"; then echo "OK persona is your own, mentions sanity-protocol and NO_REPLY"
 else echo "BAD persona does not follow the protocol (no sanity-protocol / NO_REPLY in SOUL.md)"; fi
 if [ "$ROLE" = reader ]; then
-  if grep -q "fetch_paper.py" "$SOUL" 2>/dev/null && grep -q "meta.json" "$SOUL"; then echo "OK reader fetches the paper and posts meta.json"
+  if grep -q "fetch_paper.py" "$SOUL" 2>/dev/null && grep -q "meta.json" "$SOUL" && grep -q "Always run" "$SOUL"; then echo "OK reader fetches the paper and posts meta.json"
   else echo "BAD reader SOUL.md has no fetch_paper.py / meta.json step; reconfigure copies agents/reader/AGENT.md"; fi
 fi
 v() { sed -n "s/^$1=//p" "$ENVF" 2>/dev/null | tail -1; }

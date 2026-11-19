@@ -89,6 +89,38 @@ def test_token_from_env_or_file(tmp_path, monkeypatch):
     assert read_bot_token() == "456:def"
 
 
+def test_mention_and_a_bad_header_get_a_hint(tmp_path):
+    mentioned = parse_header("@SanityPublisherBot sanity run=example-oscillator to=publisher stage=event")
+    assert mentioned["stage"] == "event"
+    bot = Publisher(tmp_path, dry_run=True, fetch=False, push=False)
+    bad = {
+        "message_id": 9,
+        "chat": {"id": -100},
+        "text": "@SanityPublisherBot to=publisher please",
+    }
+    hint = _texts(bot.handle(bad, {}, now=0))
+    assert hint and "stage=publish" in hint[0]
+    missing = {
+        "message_id": 10,
+        "chat": {"id": -100},
+        "text": f"sanity run={SLUG} to=publisher stage=publish",
+    }
+    out = _texts(bot.handle(missing, {}, now=2))
+    assert out and "zip" in out[0]
+
+
+def test_oversized_or_non_zip_is_rejected(tmp_path):
+    bot = Publisher(tmp_path, dry_run=True, fetch=False, push=False)
+    huge = _message(11)
+    huge["document"]["file_size"] = 21 * 1024 * 1024
+    over = _texts(bot.handle(huge, {"zip": b"PK"}, now=0))
+    assert over and "20 MB" in over[0]
+    other = _message(12, "notes.pdf")
+    other["document"]["mime_type"] = "application/pdf"
+    kind = _texts(bot.handle(other, {"zip": b"%PDF"}, now=2))
+    assert kind and "zip" in kind[0]
+
+
 def test_header_parser_ignores_other_roles():
     assert parse_header("hello") is None
     assert parse_header("sanity run=foo to=writer stage=writer") is None

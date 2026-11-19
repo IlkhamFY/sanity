@@ -2,7 +2,7 @@
 
 The publisher is a daemon, `scripts/publisher.py`. It is not a Hermes bot. It reads the Telegram group, runs `scripts/publish_run.py`, and is the only process that commits. The three LLM bots never hold a GitHub token or a deploy key.
 
-It runs on QuantumNode, either on the Windows host or inside the `hermes` Docker container. Both are below. The clone it uses must be writable. The Verifier's `/opt/data/sanity` checkout is read-only for the `hermes` user, so the publisher gets its own clone.
+It runs on Ilkham's Windows host, in its own clone, or in a container of its own. Both are below. The LLM bot containers never hold the key. Do not put the daemon or the deploy key in the Reader, Verifier, or Writer containers.
 
 Commits are authored `Ilkham Yabbarov <ilkhamfy@gmail.com>` with message `site`. The push goes to branch `data` and is never a force push. `main` stays the reviewed code branch. Before each commit the daemon merges `origin/main` into `data`, so a code change on `main` reaches the live site on the next publish. Until `data` exists, GitHub Pages still deploys `main`. After `data` exists, Pages deploys `data` only, which keeps a later push to `main` from wiping published papers.
 
@@ -69,36 +69,11 @@ python scripts\publisher.py
 
 Leave the process running. The first publish creates branch `data` from the clone and pushes it.
 
-## 4. Run it in the hermes container
+## 4. Its own container
 
-The publisher needs a writable clone and the key inside the container. Do not point it at `/opt/data/sanity`.
+The other supported place is a container that runs only the publisher. Give that container its own clone and mount the deploy key into it. The environment variables are the same as on the Windows host. The process is `python scripts/publisher.py` in that clone, and `python scripts/publisher.py --dry-run` reads one batch without committing.
 
-```bash
-docker exec hermes bash -lc 'git clone https://github.com/IlkhamFY/sanity.git /opt/data/sanity-publisher'
-docker cp sanity_publisher hermes:/opt/data/keys/sanity_publisher
-docker exec hermes chmod 600 /opt/data/keys/sanity_publisher
-```
-
-Start it in the background. `docker exec -d` returns immediately; the process is not the container's main process, so a container restart stops it and this command has to be run again.
-
-```bash
-docker exec -d \
-  -e SANITY_PUBLISHER_BOT_TOKEN \
-  -e SANITY_DEPLOY_KEY=/opt/data/keys/sanity_publisher \
-  hermes bash -lc 'cd /opt/data/sanity-publisher && python3 scripts/publisher.py >> /opt/data/sanity-publisher.log 2>&1'
-```
-
-`SANITY_PUBLISHER_BOT_TOKEN` must already be set in the shell that runs `docker exec`. Do not commit the token. Follow the log with:
-
-```bash
-docker exec hermes tail -f /opt/data/sanity-publisher.log
-```
-
-Dry-run, one batch, no commit:
-
-```bash
-docker exec -e SANITY_PUBLISHER_BOT_TOKEN -e SANITY_DEPLOY_KEY=/opt/data/keys/sanity_publisher hermes python3 /opt/data/sanity-publisher/scripts/publisher.py --dry-run
-```
+Do not start it with `docker exec` inside the `hermes` container, and do not copy the key there. The LLM bot containers never hold the key.
 
 ## What the daemon accepts
 
@@ -107,4 +82,4 @@ docker exec -e SANITY_PUBLISHER_BOT_TOKEN -e SANITY_DEPLOY_KEY=/opt/data/keys/sa
 | `sanity run=<slug> to=publisher stage=publish` | one `.zip`: `equations.json`, `verdicts.json`, `report.html`, `meta.json`, and the check scripts | validate, `publish_run.py`, commit `site`, push `data` |
 | `sanity run=<slug> to=publisher stage=event` | one line, starting with Reader, Verifier, or Writer | append `activity.json` |
 
-`meta.json` comes from `scripts/fetch_paper.py` for an arXiv id or DOI. With neither, `example` is true and the row is filed under Examples. The reply links to `papers.html?paper=<slug>`.
+`meta.json` comes from `scripts/fetch_paper.py`, for an arXiv id, a DOI, or a pasted file. With no arXiv id and no DOI, `example` is true and the row is filed under Examples. The reply links to `papers.html?paper=<slug>`.

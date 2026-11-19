@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://sanity.local/schemas/meta.schema.json",
   "title": "Paper source record",
-  "description": "runs/<slug>/source/meta.json from scripts/fetch_paper.py, and the meta.json in a publisher bundle. Bibliographic fields come from the arXiv API. subject is the site section for that category. example is true only when there is no arXiv id and no DOI.",
+  "description": "runs/<slug>/source/meta.json from scripts/fetch_paper.py, and the meta.json in a publisher bundle. Bibliographic fields come from the arXiv API, or from a local file when source is file. example is true only when there is no arXiv id and no DOI. A local file may set subject from its own text, or unknown; the publisher still files that row under Examples.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -38,6 +38,7 @@
     },
     "subject": {"type": "string", "minLength": 1},
     "example": {"type": "boolean"},
+    "source": {"type": "string", "minLength": 1},
     "summary": {"type": "string"},
     "catch": {"type": "string"}
   }

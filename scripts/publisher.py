@@ -34,13 +34,14 @@ from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from fetch_paper import classify
+from fetch_paper import classify, subject_errors
 from guard import (
     EQUATIONS_SCHEMA,
     META_SCHEMA,
     VERDICTS_SCHEMA,
     _schema_errors,
     _script_errors,
+    external_script_errors,
     failing_claims,
     report_section_text,
     report_url_errors,
@@ -56,6 +57,14 @@ PUSH = ["git", "push", "origin", "HEAD:data"]
 SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 GAP = 1.0
 BUNDLE = ("equations.json", "report.html", "meta.json")
+MAX_DOCUMENT = 20 * 1024 * 1024
+ZIP_MIME = {"application/zip", "application/x-zip-compressed", "application/x-zip"}
+HEADER_HINT = (
+    "header: sanity run=<slug> to=publisher stage=publish (one zip) "
+    "or stage=event (one line starting Reader:, Verifier:, or Writer:)"
+)
+_MENTION = re.compile(r"^(?:@\S+\s+)+")
+_TO_PUBLISHER = re.compile(r"\bto=publisher\b")
 
 
 class PublisherError(RuntimeError):
@@ -63,8 +72,12 @@ class PublisherError(RuntimeError):
 
 
 def parse_header(text: str) -> dict | None:
-    """The first line, if it is a publisher header. Later lines are the body."""
+    """The first line, if it is a publisher header. Later lines are the body.
+
+    A leading @mention, such as @SanityPublisherBot, is ignored.
+    """
     line = (text or "").splitlines()[0].strip() if text else ""
+    line = _MENTION.sub("", line)
     if not line.startswith("sanity "):
         return None
     fields = {}
@@ -80,6 +93,31 @@ def parse_header(text: str) -> dict | None:
     if not SLUG.fullmatch(fields.get("run") or ""):
         return None
     return fields
+
+
+def mentions_publisher(text: str) -> bool:
+    return bool(_TO_PUBLISHER.search(text or ""))
+
+
+def zip_document(document: dict) -> bool:
+    name = (document.get("file_name") or "").lower()
+    mime = (document.get("mime_type") or "").lower()
+    if name.endswith(".zip"):
+        return True
+    return mime in ZIP_MIME
+
+
+def attachment_error(document: dict, header: dict | None) -> str | None:
+    """Reject a document before it is downloaded. None means it may be fetched."""
+    if not document:
+        return None
+    size = document.get("file_size")
+    if isinstance(size, int) and size > MAX_DOCUMENT:
+        return "attachment is over 20 MB"
+    if header and header.get("stage") == "publish" and (document.get("file_name") or document.get("mime_type")):
+        if not zip_document(document):
+            return "publish attachment must be a .zip"
+    return None
 
 
 def activity_role(header: dict, line: str) -> str | None:
@@ -145,11 +183,11 @@ def bundle_problems(run: Path) -> list[str]:
     errors.extend(_schema_errors(verdicts, VERDICTS_SCHEMA, "verdicts.json"))
     errors.extend(_schema_errors(meta, META_SCHEMA, "meta.json"))
     errors.extend(_script_errors(run, verdicts))
-    subject, example = classify(meta)
-    if meta.get("subject") != subject or bool(meta.get("example")) != example:
-        errors.append(f"meta.json should say subject {subject!r}, example {example}")
+    for problem in subject_errors(meta):
+        errors.append(f"meta.json {problem}")
     html = (run / "report.html").read_text(encoding="utf-8")
     errors.extend(report_url_errors(html, "report.html"))
+    errors.extend(external_script_errors(html, "report.html"))
     section = report_section_text(html)
     fails = failing_claims(verdicts)
     if not section.strip():
@@ -299,7 +337,13 @@ class Publisher:
         text = message.get("text") or message.get("caption") or ""
         header = parse_header(text)
         if header is None:
+            if mentions_publisher(text):
+                return self.enqueue(chat_id, HEADER_HINT, now)
             return self.drain(now)
+        document = message.get("document") or {}
+        problem = attachment_error(document, header)
+        if problem:
+            return self.enqueue(chat_id, problem, now)
         try:
             if header["stage"] == "event":
                 reply = self._event(header, text, chat_id)
@@ -331,7 +375,9 @@ class Publisher:
         file_id = document.get("file_id")
         name = document.get("file_name") or ""
         if not file_id or file_id not in blobs:
-            raise PublisherError("stage=publish needs the bundle zip attached")
+            raise PublisherError(
+                "stage=publish needs one zip attached as that message's document"
+            )
         blob = blobs[file_id]
         if name.lower().endswith(".zip") or blob[:2] == b"PK":
             return self._publish_zip(header["run"], blob)
@@ -518,9 +564,11 @@ def serve(repo: Path, *, dry_run: bool) -> None:
             if not message:
                 continue
             document = message.get("document") or {}
+            text = message.get("text") or message.get("caption") or ""
             blobs = {}
-            if document.get("file_id"):
-                blobs[document["file_id"]] = api.download(document["file_id"])
+            file_id = document.get("file_id")
+            if file_id and attachment_error(document, parse_header(text)) is None:
+                blobs[file_id] = api.download(file_id)
             # handle() dedupes and rate-limits the text; send what it returns, to the same chat.
             outgoing.extend(publisher.handle(message, blobs, now))
             now = publisher.last_send if publisher.last_send > 0 else now

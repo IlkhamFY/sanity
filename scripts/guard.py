@@ -9,6 +9,7 @@ Checks every runs/<slug> that has equations.json:
 - the summary and the catch name only equations whose verdict is FAILS
 - counts in site/public/data/papers.json match those verdicts
 - report.html has no external URL except Google Fonts and KaTeX
+- report.html does not load an external script (`<script src="http...">`)
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
-from fetch_paper import classify
+from fetch_paper import subject_errors
 from publish_run import find_verdicts, load_json, tally
 
 REPO = Path(__file__).resolve().parents[1]
@@ -34,6 +35,8 @@ _KATEX_HOSTS = {"cdn.jsdelivr.net", "unpkg.com", "katex.org"}
 _PAREN = re.compile(r"\((\d+(?:\.\d+)*)\)")
 _EQWORD = re.compile(r"\b(?:eq|eqn|equation)\.?\s+\(?(\d+(?:\.\d+)*)\)?", re.I)
 _URL = re.compile(r"(?:https?:)?//[^\s\"'<>)]+", re.I)
+_SCRIPT = re.compile(r"<script\b([^>]*)>", re.I)
+_SCRIPT_SRC = re.compile(r"""\bsrc\s*=\s*(['"]?)([^'"\s>]+)\1""", re.I)
 _HEADING = re.compile(r"<h[1-3][^>]*>(.*?)</h[1-3]>(.*?)(?=<h[1-3][\s>]|$)", re.I | re.S)
 _TAG = re.compile(r"<[^>]+>")
 _SECTION = re.compile(r"summary|judgement|judgment|catch", re.I)
@@ -101,6 +104,19 @@ def _script_errors(run: Path, verdicts: dict) -> list[str]:
         )
     for item in verdicts.get("checks") or []:
         check(str(item.get("verdict")), item.get("script"), item.get("evidence"), f"check {item.get('check_id')}")
+    return errors
+
+
+def external_script_errors(html: str, where: str) -> list[str]:
+    """A report may animate itself. It may not load a script from the network."""
+    errors = []
+    for tag in _SCRIPT.findall(html or ""):
+        src = _SCRIPT_SRC.search(tag)
+        if not src:
+            continue
+        url = src.group(2)
+        if url.startswith(("http://", "https://", "//")):
+            errors.append(f"{where} loads an external script {url}")
     return errors
 
 
@@ -177,11 +193,8 @@ def validate_run(run: Path, paper: dict | None, activity: list[dict]) -> list[st
             errors.append(f"{meta_path} is not JSON: {exc}")
             continue
         errors.extend(_schema_errors(meta, META_SCHEMA, str(meta_path)))
-        subject, example = classify(meta)
-        if meta.get("subject") != subject:
-            errors.append(f"{meta_path.name} subject is {meta.get('subject')!r}, category maps to {subject!r}")
-        if bool(meta.get("example")) != example:
-            errors.append(f"{meta_path.name} example is {meta.get('example')}, expected {example}")
+        for problem in subject_errors(meta):
+            errors.append(f"{meta_path.name} {problem}")
         errors.extend(summary_errors(str(meta.get("summary") or ""), fails, f"{where} summary"))
         errors.extend(summary_errors(str(meta.get("catch") or ""), fails, f"{where} catch"))
     if paper is None:
@@ -206,6 +219,7 @@ def validate_run(run: Path, paper: dict | None, activity: list[dict]) -> list[st
         if report.is_file():
             html = report.read_text(encoding="utf-8")
             errors.extend(report_url_errors(html, str(report)))
+            errors.extend(external_script_errors(html, str(report)))
             errors.extend(summary_errors(report_section_text(html), fails, f"{report.name} summary/catch"))
     return errors
 

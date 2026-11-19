@@ -494,6 +494,15 @@ async function renderDetail(paper) {
   if (tools) detailEl.append(tools);
   const feed = activity(paper);
   if (feed) detailEl.append(feed);
+  if (paper.report) {
+    const report = document.createElement("iframe");
+    report.className = "report";
+    report.src = `./data/${paper.report}`;
+    report.title = `Report for ${paper.title}`;
+    report.sandbox = "allow-scripts";
+    report.referrerPolicy = "no-referrer";
+    detailEl.append(report);
+  }
   const more = document.createElement("p");
   more.className = "more";
   const equations = document.createElement("a");

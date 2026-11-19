@@ -264,3 +264,87 @@ def test_missing_preview_tools_warn_and_continue(tmp_path, monkeypatch, capsys):
     assert (dest / "paper.pdf").read_bytes().startswith(b"%PDF")
     assert not (dest / "preview.png").exists()
     assert "skipping preview.png" in capsys.readouterr().err
+
+
+def test_tex_file_keeps_written_authors_and_marks_an_example(tmp_path):
+    path = tmp_path / "note.tex"
+    path.write_text(
+        "\\title{A generated note}\n"
+        "\\author{Ada Lovelace \\and Alan Turing}\n"
+        "\\begin{abstract}Two qubits in a toy model.\\end{abstract}\n",
+        encoding="utf-8",
+    )
+    dest = fetch_paper(str(path), tmp_path, slug="toy-note", now=datetime(2026, 11, 19, tzinfo=timezone.utc))
+    meta = json.loads((dest / "meta.json").read_text(encoding="utf-8"))
+    assert (dest / "note.tex").read_text(encoding="utf-8").startswith("\\title")
+    assert meta["title"] == "A generated note"
+    assert meta["authors"] == ["Ada Lovelace", "Alan Turing"]
+    assert meta["abstract"] == "Two qubits in a toy model."
+    assert meta["subject"] == "Quantum physics"
+    assert meta["example"] is True
+    assert meta["source"] == "file"
+    assert meta["arxiv_id"] is None and meta["doi"] is None
+    assert meta["slug"] == "toy-note"
+
+
+def test_tex_without_an_author_is_unknown(tmp_path):
+    path = tmp_path / "bare.tex"
+    path.write_text("\\title{Untitled remark}\n\\begin{abstract}No names here.\\end{abstract}\n", encoding="utf-8")
+    dest = fetch_paper(str(path), tmp_path)
+    meta = json.loads((dest / "meta.json").read_text(encoding="utf-8"))
+    assert meta["authors"] == ["unknown"]
+    assert meta["subject"] == "unknown"
+    assert meta["example"] is True
+    assert meta["slug"] == "bare"
+
+
+def test_markdown_file_reads_heading_and_authors(tmp_path):
+    path = tmp_path / "lattice.md"
+    path.write_text(
+        "# Simulated lattice\n\nAuthors: Grace Hopper\n\n## Abstract\n\nA condensed matter lattice model.\n",
+        encoding="utf-8",
+    )
+    dest = fetch_paper(str(path), tmp_path, slug="sim-lattice")
+    meta = json.loads((dest / "meta.json").read_text(encoding="utf-8"))
+    assert meta["title"] == "Simulated lattice"
+    assert meta["authors"] == ["Grace Hopper"]
+    assert "lattice model" in meta["abstract"]
+    assert meta["subject"] == "Condensed matter"
+    assert meta["source"] == "file" and meta["example"] is True
+    assert (dest / "lattice.md").is_file()
+
+
+def test_pdf_without_an_author_line_is_unknown(tmp_path):
+    pymupdf = pytest.importorskip("pymupdf")
+    path = tmp_path / "catalysis.pdf"
+    document = pymupdf.open()
+    page = document.new_page()
+    page.insert_text((72, 72), "Catalysis Note")
+    page.insert_text((72, 120), "Abstract")
+    page.insert_text((72, 150), "A reaction study.")
+    document.save(path)
+    document.close()
+    dest = fetch_paper(str(path), tmp_path, slug="catalysis-note")
+    meta = json.loads((dest / "meta.json").read_text(encoding="utf-8"))
+    assert meta["title"] == "Catalysis Note"
+    assert meta["authors"] == ["unknown"]
+    assert meta["subject"] == "Chemistry"
+    assert meta["example"] is True
+    assert meta["source"] == "file"
+    assert (dest / "catalysis.pdf").is_file()
+
+
+def test_pdf_without_an_extractor_uses_the_filename(tmp_path, monkeypatch, capsys):
+    path = tmp_path / "simulated-note.pdf"
+    path.write_bytes(b"%PDF-1.4\n")
+    monkeypatch.setattr("fetch_paper.pdf_text", lambda _path: None)
+    monkeypatch.setattr("fetch_paper.preview_backend", lambda: None)
+    dest = fetch_paper(str(path), tmp_path)
+    meta = json.loads((dest / "meta.json").read_text(encoding="utf-8"))
+    assert meta["title"] == "simulated-note"
+    assert meta["authors"] == ["unknown"]
+    assert meta["example"] is True
+    assert not (dest / "preview.png").exists()
+    err = capsys.readouterr().err
+    assert "pdftotext" in err
+    assert "skipping preview.png" in err

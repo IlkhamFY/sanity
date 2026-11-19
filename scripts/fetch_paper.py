@@ -61,10 +61,28 @@ def subject_for_category(category: str | None) -> str:
 
 
 def classify(meta: dict) -> tuple[str, bool]:
-    """Return (subject, example). No arXiv id and no DOI means an example."""
+    """Return (subject, example). No arXiv id and no DOI means an example.
+
+    The returned subject is the section the site files the row under.
+    A local file may also store a content guess in meta["subject"]; that does
+    not change the section. Those rows are Examples.
+    """
     if meta.get("arxiv_id") or meta.get("doi"):
         return subject_for_category(meta.get("primary_category")), False
     return "Examples", True
+
+
+def subject_errors(meta: dict) -> list[str]:
+    """Schema-level subject and example checks shared by the guard and the publisher."""
+    mapped, example = classify(meta)
+    errors = []
+    if bool(meta.get("example")) != example:
+        errors.append(f"example is {meta.get('example')}, expected {example}")
+    if not example and meta.get("subject") != mapped:
+        errors.append(f"subject is {meta.get('subject')!r}, category maps to {mapped!r}")
+    if example and not str(meta.get("subject") or "").strip():
+        errors.append("subject is empty")
+    return errors
 
 
 _ARXIV = re.compile(r"(\d{4}\.\d{4,5})(v\d+)?", re.I)
@@ -108,6 +126,254 @@ def src_url(arxiv_id: str, version: str | None) -> str:
 
 def slug_for(arxiv_id: str) -> str:
     return "arxiv-" + arxiv_id.replace(".", "-")
+
+
+_FILE_SUFFIXES = {".pdf", ".tex", ".md", ".markdown"}
+_SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_SUBJECT_KEYS = (
+    (("black hole", "gravitational wave", "relativity", "astrophys"), ASTRO_GR),
+    (("chemistry", "molecule", "reaction", "catalyst", "catalysis"), "Chemistry"),
+    (("theorem", "lemma", "manifold", "algebra"), "Mathematics"),
+    (("qubit", "quantum", "entanglement"), "Quantum physics"),
+    (("condensed matter", "superconduct", "lattice"), "Condensed matter"),
+    (("physics", "lagrangian", "particle"), "Physics"),
+)
+
+
+def is_local_spec(spec: str) -> bool:
+    """A filesystem path, not an arXiv id or DOI."""
+    path = Path(spec)
+    if path.is_file():
+        return True
+    return path.suffix.lower() in _FILE_SUFFIXES
+
+
+def slug_from_path(path: Path, explicit: str | None) -> str:
+    if explicit:
+        slug = explicit.strip().lower()
+    else:
+        slug = re.sub(r"[^a-z0-9]+", "-", path.stem.lower()).strip("-")
+    if not _SLUG.fullmatch(slug or ""):
+        raise FetchError(f"slug must be lowercase words and hyphens: {explicit or path.stem}")
+    return slug
+
+
+def infer_subject(text: str) -> str:
+    """A coarse section from words in the file, or unknown."""
+    haystack = text.lower()
+    for words, subject in _SUBJECT_KEYS:
+        if any(word in haystack for word in words):
+            return subject
+    return "unknown"
+
+
+def _brace_group(text: str, open_at: int) -> str:
+    """The contents of the brace that starts at open_at, which points at '{'."""
+    depth = 0
+    out = []
+    for char in text[open_at:]:
+        if char == "{":
+            depth += 1
+            if depth == 1:
+                continue
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                break
+        if depth >= 1:
+            out.append(char)
+    return "".join(out)
+
+
+def _tex_command(text: str, name: str) -> str | None:
+    match = re.search(rf"\\{name}\b", text)
+    if not match:
+        return None
+    rest = text[match.end():].lstrip()
+    if not rest.startswith("{"):
+        return None
+    return _collapse(_brace_group(rest, 0))
+
+
+def _split_authors(raw: str) -> list[str]:
+    """Names exactly as written. No name is filled in."""
+    text = re.sub(r"\\(?:thanks|email|inst|affiliation|address|footnote)\s*\{[^{}]*\}", " ", raw)
+    text = text.replace(r"\and", "\n")
+    text = re.sub(r"\\[a-zA-Z]+\*?", " ", text)
+    text = text.replace("{", " ").replace("}", " ")
+    parts = re.split(r"\s*(?:\n|,|;|\band\b|&)\s*", text)
+    names = [_collapse(part) for part in parts]
+    return [name for name in names if name and name.lower() != "unknown"]
+
+
+def _authors_or_unknown(names: list[str]) -> list[str]:
+    return names or ["unknown"]
+
+
+def parse_tex(text: str) -> dict:
+    title = _tex_command(text, "title")
+    author = _tex_command(text, "author")
+    abstract_match = re.search(r"\\begin\{abstract\}(.*?)\\end\{abstract\}", text, re.S)
+    abstract = _collapse(abstract_match.group(1)) if abstract_match else ""
+    return {
+        "title": title,
+        "authors": _authors_or_unknown(_split_authors(author or "")),
+        "abstract": abstract,
+    }
+
+
+def parse_markdown(text: str) -> dict:
+    title_match = re.search(r"^#\s+(.+)$", text, re.M)
+    title = _collapse(title_match.group(1)) if title_match else None
+    author_match = re.search(r"(?im)^(?:authors?|by)\s*:\s*(.+)$", text)
+    authors = _authors_or_unknown(_split_authors(author_match.group(1)) if author_match else [])
+    abstract_match = re.search(r"(?ims)^#{1,3}\s+abstract\s*\n+(.+?)(?:\n#{1,3}\s|\Z)", text)
+    abstract = _collapse(abstract_match.group(1)) if abstract_match else ""
+    return {"title": title, "authors": authors, "abstract": abstract}
+
+
+def _looks_like_authors(line: str) -> bool:
+    if not line or len(line) > 180 or line.endswith("."):
+        return False
+    if re.search(r"\b(and|&)\b|,", line) and re.search(r"[A-Za-z]", line):
+        return True
+    return bool(re.fullmatch(r"[A-Z][\w.'’-]+(?:\s+[A-Z][\w.'’-]+){1,4}", line))
+
+
+def parse_plain_header(text: str) -> dict:
+    """Title, authors, and abstract from the first page of plain text."""
+    lines = [_collapse(line) for line in text.splitlines()]
+    lines = [line for line in lines if line and not re.match(r"arXiv:", line, re.I)]
+    title = None
+    authors: list[str] = []
+    body_start = 0
+    for index, line in enumerate(lines):
+        if line.lower() == "abstract" or line.lower().startswith("abstract "):
+            body_start = index
+            break
+        if title is None:
+            title = line
+            continue
+        if _looks_like_authors(line):
+            authors = _split_authors(line)
+            continue
+        break
+    abstract = ""
+    for line in lines[body_start:]:
+        if line.lower() in {"abstract", "introduction"}:
+            continue
+        if line.lower().startswith("introduction"):
+            break
+        abstract = _collapse(f"{abstract} {line}")
+        if len(abstract) > 800:
+            break
+    return {"title": title, "authors": _authors_or_unknown(authors), "abstract": abstract}
+
+
+def pdf_text(path: Path) -> str | None:
+    """First-page text, or None when neither pymupdf nor pdftotext is installed."""
+    try:
+        import pymupdf
+    except ImportError:
+        pymupdf = None
+    if pymupdf is not None:
+        document = pymupdf.open(path)
+        try:
+            if document.page_count < 1:
+                return ""
+            return document[0].get_text() or ""
+        finally:
+            document.close()
+    if not shutil.which("pdftotext"):
+        return None
+    import subprocess
+
+    completed = subprocess.run(
+        ["pdftotext", "-f", "1", "-l", "1", "-q", str(path), "-"],
+        check=False,
+        capture_output=True,
+    )
+    if completed.returncode != 0:
+        return ""
+    return completed.stdout.decode("utf-8", "replace")
+
+
+def _local_record(path: Path) -> tuple[dict, str]:
+    suffix = path.suffix.lower()
+    if suffix == ".tex":
+        return parse_tex(path.read_text(encoding="utf-8", errors="replace")), path.read_text(encoding="utf-8", errors="replace")
+    if suffix in {".md", ".markdown"}:
+        text = path.read_text(encoding="utf-8", errors="replace")
+        return parse_markdown(text), text
+    if suffix == ".pdf":
+        text = pdf_text(path)
+        if text is None:
+            print(
+                "warning: neither pymupdf nor pdftotext is installed; "
+                f"title taken from the filename {path.name}",
+                file=sys.stderr,
+            )
+            return {"title": None, "authors": ["unknown"], "abstract": ""}, ""
+        return parse_plain_header(text), text
+    text = path.read_text(encoding="utf-8", errors="replace")
+    return parse_plain_header(text), text
+
+
+def build_file_meta(path: Path, slug: str, fetched_at: str) -> dict:
+    record, text = _local_record(path)
+    title = record.get("title") or path.stem
+    if not record.get("title"):
+        print(f"warning: no title in {path.name}; using the filename", file=sys.stderr)
+    return {
+        "title": title,
+        "authors": record["authors"],
+        "abstract": record.get("abstract") or "",
+        "arxiv_id": None,
+        "version": None,
+        "primary_category": None,
+        "doi": None,
+        "journal_ref": None,
+        "fetched_at": fetched_at,
+        "slug": slug,
+        "subject": infer_subject(f"{title}\n{record.get('abstract') or ''}\n{text}"),
+        "example": True,
+        "source": "file",
+    }
+
+
+def fetch_local(path: Path, repo: Path, slug: str | None, now: datetime | None) -> Path:
+    """Copy a pasted or generated file into runs/<slug>/source/. No network."""
+    if not path.is_file():
+        raise FetchError(f"not a file: {path}")
+    slug = slug_from_path(path, slug)
+    when = (now or datetime.now(timezone.utc)).replace(microsecond=0)
+    meta = build_file_meta(path, slug, when.isoformat().replace("+00:00", "Z"))
+    _validate_meta(meta)
+    dest = repo / "runs" / slug / "source"
+    dest.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(path, dest / path.name)
+    (dest / "meta.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    if path.suffix.lower() == ".pdf":
+        try:
+            wrote = render_preview_png(dest / path.name, dest / "preview.png")
+        except FetchError:
+            raise
+        except Exception as exc:
+            raise FetchError(f"preview failed: {exc}") from None
+        if not wrote:
+            print(
+                "warning: neither pymupdf nor pdftoppm is installed; skipping preview.png. "
+                "The publisher uses the arXiv first page when it publishes.",
+                file=sys.stderr,
+            )
+    return dest
+
+
+def _validate_meta(meta: dict) -> None:
+    import jsonschema
+
+    schema = json.loads((REPO / "docs" / "schemas" / "meta.schema.json").read_text(encoding="utf-8"))
+    jsonschema.validate(meta, schema)
 
 
 def _collapse(value: str | None) -> str:
@@ -312,8 +578,14 @@ def _preview_with_poppler(pdf_path: Path, dest: Path) -> None:
     rendered.replace(dest)
 
 
-def fetch_paper(spec: str, repo: Path, *, opener=None, now: datetime | None = None, sleeper=time.sleep) -> Path:
-    """Download into runs/<slug>/source/ and return that directory."""
+def fetch_paper(spec: str, repo: Path, *, opener=None, now: datetime | None = None, sleeper=time.sleep, slug: str | None = None) -> Path:
+    """Download into runs/<slug>/source/ and return that directory.
+
+    `spec` is an arXiv id, a DOI, or a local PDF, TeX, or Markdown file.
+    A local file never touches the network.
+    """
+    if is_local_spec(spec):
+        return fetch_local(Path(spec), repo, slug, now)
     kind, ident, version = parse_spec(spec)
     status, payload = _read(api_url(kind, ident, version), opener, sleeper)
     entry = None
@@ -334,10 +606,7 @@ def fetch_paper(spec: str, repo: Path, *, opener=None, now: datetime | None = No
     when = (now or datetime.now(timezone.utc)).replace(microsecond=0)
     fetched_at = when.isoformat().replace("+00:00", "Z")
     meta = build_meta(entry, fetched_at)
-    import jsonschema
-
-    schema = json.loads((REPO / "docs" / "schemas" / "meta.schema.json").read_text(encoding="utf-8"))
-    jsonschema.validate(meta, schema)
+    _validate_meta(meta)
     dest = repo / "runs" / meta["slug"] / "source"
     dest.mkdir(parents=True, exist_ok=True)
     (dest / "meta.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -366,12 +635,13 @@ def fetch_paper(spec: str, repo: Path, *, opener=None, now: datetime | None = No
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Fetch an arXiv paper or a DOI into runs/<slug>/source/.")
-    parser.add_argument("spec", help="arXiv id (2410.11128 or 2410.11128v1) or a DOI")
+    parser = argparse.ArgumentParser(description="Fetch an arXiv paper, a DOI, or a local file into runs/<slug>/source/.")
+    parser.add_argument("spec", help="arXiv id, DOI, or a path to a PDF, .tex, or .md file")
+    parser.add_argument("--slug", help="Run slug for a local file. Defaults to the filename.")
     parser.add_argument("--repo", type=Path, default=REPO)
     args = parser.parse_args(argv)
     try:
-        dest = fetch_paper(args.spec, args.repo)
+        dest = fetch_paper(args.spec, args.repo, slug=args.slug)
     except FetchError as exc:
         print(str(exc))
         return 1

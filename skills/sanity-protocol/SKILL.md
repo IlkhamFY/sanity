@@ -63,8 +63,9 @@ token and accepts only `to=publisher`. That header wakes none of the three bots.
 | 8 | Verifier → Writer | `sanity run=<slug> to=writer stage=writer attempt=<n> equations_sha256=<hex> verdicts_sha256=<hex> bundle_sha256=<hex> code=<commit>`, as the **caption of the bundle** | one file: `<slug>-<n>.zip` (contains `equations.json` and `verify/verdicts.json`) |
 | 9 | Writer → group | `sanity run=<slug> status=done attempt=<n>` | optional `REPORT.md` |
 | 10 | person → any bot | `stop <slug>`, `rerun <slug>`, `status <slug>`, with the bot's @handle, as a reply to it, or after `sanity run=<slug> to=<role>` | none |
-| 11 | bot → Publisher | `sanity run=<slug> to=publisher stage=event` | none; the next line is one activity line, and it starts with Reader, Verifier, or Writer |
-| 12 | Writer → Publisher | `sanity run=<slug> to=publisher stage=publish` | one `.zip`: `equations.json`, `verdicts.json`, `report.html`, `meta.json`, and the check scripts |
+| 11 | Writer → Publisher | `sanity run=<slug> to=publisher stage=event` | none; the next line is one activity line, and it starts with `Reader:`, `Verifier:`, or `Writer:` |
+| 12 | Writer → Publisher | `sanity run=<slug> to=publisher stage=publish` | one `.zip`, the captioned document: `equations.json`, `verdicts.json`, `report.html`, `meta.json`, and the check scripts |
+| 13 | Publisher → group | `published <slug> -> <url>`, or the validation error | none |
 
 Notes:
 
@@ -86,7 +87,7 @@ Notes:
   `verify/verdicts.json` from it (and checks `verdicts_sha256`). A run can have several attempts; a later attempt replaces an
   earlier one for the same run.
 - **9**: the end of a run, for people. Nobody answers it.
-- **11**: one activity line. The publisher appends it (`publish_run.py --event`) and does not
+- **11**: one activity line, starting `Reader:`, `Verifier:`, or `Writer:`. The publisher appends it (`publish_run.py --event`) and does not
   reply. An LLM bot that sees it replies `NO_REPLY`.
 - **12**: one zip, header as its caption, for the same reason as message 8: a caption rides
   on exactly one file. The zip holds `equations.json`, `verdicts.json` (or
@@ -94,6 +95,7 @@ Notes:
   HOLDS or FAILS verdict names. The publisher validates it, runs `publish_run.py`,
   and commits. The same zip a second time does not make a second commit. LLM bots
   reply `NO_REPLY`. They never hold a GitHub token or deploy key.
+- **13**: the publisher's reply in the group. It is not a header, so it wakes no bot. A malformed `to=publisher` line, or a `stage=publish` with no zip, gets a short hint instead of silence.
 
 ## 4. When to act, when to stay silent
 

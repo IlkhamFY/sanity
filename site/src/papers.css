@@ -254,6 +254,15 @@ a:has(> .mark-img) { display: inline-flex; align-items: center; }
   pointer-events: auto;
 }
 
+.report {
+  display: block;
+  width: 100%;
+  min-height: 28rem;
+  margin: 1.25rem 0 0;
+  border: 1px solid rgba(243, 239, 230, 0.55);
+  background: #f4f1ea;
+}
+
 .detail h2 {
   margin: 0.35rem 0 0;
   max-width: 18em;

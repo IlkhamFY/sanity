@@ -31,6 +31,25 @@ def table_headers() -> list[str]:
     return headers
 
 
+def test_documented_publisher_headers_parse():
+    from publisher import parse_header
+
+    headers = [header for header in table_headers() if "to=publisher" in header]
+    assert any("stage=publish" in header for header in headers)
+    assert any("stage=event" in header for header in headers)
+    for header in headers:
+        concrete = header.replace("<slug>", "example-oscillator")
+        parsed = parse_header(concrete)
+        assert parsed is not None, header
+        assert parsed["to"] == "publisher"
+        assert parsed["stage"] in {"publish", "event"}
+        assert parsed["run"] == "example-oscillator"
+    mentioned = parse_header(
+        "@SanityPublisherBot sanity run=example-oscillator to=publisher stage=publish"
+    )
+    assert mentioned == {"run": "example-oscillator", "to": "publisher", "stage": "publish"}
+
+
 def test_skill_has_frontmatter_name():
     assert SKILL.read_text(encoding="utf-8").startswith("---\nname: sanity-protocol\n")
 
@@ -78,7 +97,9 @@ def test_every_role_prompt_points_to_the_protocol(role):
 
 def test_reader_fetch_step_is_what_reconfigure_installs():
     prompt = (REPO / "agents" / "reader" / "AGENT.md").read_text(encoding="utf-8")
+    assert "Always run `python scripts/fetch_paper.py`" in prompt
     assert "python scripts/fetch_paper.py <id>" in prompt
+    assert "pasted file path" in prompt
     assert "runs/<slug>/source/meta.json" in prompt
     assert "Telegram allows one file per message" in prompt
     assert "publisher files the run under Examples" in prompt
