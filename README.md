@@ -17,6 +17,8 @@ Sanity checks the equations in a paper.
 
 A Reader lifts each displayed equation. A Verifier re-derives it in SymPy, and can add a Lean proof when the claim can be stated. A Writer turns those script verdicts into a report.
 
+A fourth bot, the Publisher, has no LLM. It checks the Writer's bundle and puts the paper on the [live site](https://ilkhamfy.github.io/sanity/papers.html). No person deploys anything.
+
 A verdict exists only if a check script printed it: `HOLDS`, `FAILS`, or `UNCHECKED`. The Writer does not change one.
 
 The three bots share one Telegram group and talk to each other there. Bot-to-Bot Communication Mode is on, so a bot sees the others' messages. Each machine message starts with `sanity run=<slug>` and names who should act with `to=<role>` (`to=reader`, `to=verifier`, `to=writer`).
