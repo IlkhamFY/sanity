@@ -9,16 +9,16 @@
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   </head>
   <body>
-    <a class="skip" href="#subjects">Skip to the papers</a>
+    <a class="skip" href="#grid">Skip to the papers</a>
     <div class="sheen" aria-hidden="true"></div>
-    <main class="board">
+    <main class="market">
       <header class="top">
-        <p class="back"><a href="./index.html">Sanity</a></p>
-        <p class="live"><span class="dot" aria-hidden="true"></span> <span id="live">LIVE</span></p>
-        <h1 class="total" id="total" aria-live="polite"></h1>
+        <h1 class="market-title">Checked papers</h1>
+        <p class="live"><span class="dot" aria-hidden="true"></span> <span id="live"></span></p>
       </header>
-      <aside class="feed" id="feed" hidden></aside>
-      <div id="subjects"></div>
+      <div class="filters" id="filters"></div>
+      <div class="grid" id="grid"></div>
+      <article class="detail" id="detail" hidden></article>
     </main>
     <footer class="colophon">
       <p>Sanity · MIT · <a href="./index.html">Home</a></p>

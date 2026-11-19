@@ -7,16 +7,21 @@ import katex from "katex";
 import "./style.css";
 import "./papers.css";
 
-const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const subjectsEl = document.querySelector("#subjects");
-const totalEl = document.querySelector("#total");
 const liveEl = document.querySelector("#live");
-const feedEl = document.querySelector("#feed");
+const filtersEl = document.querySelector("#filters");
+const gridEl = document.querySelector("#grid");
+const detailEl = document.querySelector("#detail");
 
-let previousTotals = null;
-let seen = new Map();
+let papers = [];
+let events = [];
 let lastPapers = "";
 let lastEvents = "";
+let subject = "All";
+let status = "All";
+let query = "";
+let examples = false;
+let builtFilters = false;
+const runs = new Map();
 
 function stamp(value) {
   if (!value) return NaN;
@@ -36,51 +41,27 @@ function ago(value, now) {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
-function latest(papers, events, now) {
-  const times = [];
-  for (const paper of papers) if (paper.checked_at) times.push(paper.checked_at);
-  for (const event of events) if (event.time) times.push(event.time);
-  if (!times.length) return null;
-  return times.reduce((best, time) => (stamp(time) > stamp(best) ? time : best));
+function newestEvent(list) {
+  let best = null;
+  for (const event of list) {
+    if (!event.time || Number.isNaN(stamp(event.time))) continue;
+    if (!best || stamp(event.time) > stamp(best.time)) best = event;
+  }
+  return best;
 }
 
 function isFlagged(paper) {
   return (paper.counts && paper.counts.fails > 0) || (paper.segments || []).includes("FAILS");
 }
 
-function pictogram(subject) {
-  const name = subject.toLowerCase();
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("aria-hidden", "true");
-  svg.classList.add("pict");
-  const add = (tag, attrs) => {
-    const node = document.createElementNS(svg.namespaceURI, tag);
-    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
-    svg.append(node);
-  };
-  if (name.includes("astro") || name.includes("relativ")) {
-    add("circle", { cx: "12", cy: "12", r: "3" });
-    add("circle", { cx: "12", cy: "12", r: "8" });
-  } else if (name.includes("chem")) {
-    add("polygon", { points: "12,3 20,8 20,16 12,21 4,16 4,8" });
-  } else if (name.includes("math")) {
-    add("path", { d: "M5 17 12 5l7 12" });
-  } else if (/(^|[^a-z])ml([^a-z]|$)|machine|learning/.test(name)) {
-    add("circle", { cx: "6", cy: "8", r: "2" });
-    add("circle", { cx: "18", cy: "8", r: "2" });
-    add("circle", { cx: "12", cy: "17", r: "2" });
-    add("path", { d: "M8 8.5 12 15.2 16 8.5" });
-  } else if (name.includes("phys")) {
-    add("path", { d: "M3 14c2.2-5 4.6-5 6.8 0s4.6 5 6.8 0 4.6-5 6.4 0" });
-  } else {
-    add("rect", { x: "5", y: "5", width: "14", height: "14" });
-  }
-  return svg;
+function tagOf(paper) {
+  if (paper.status === "checking") return { text: "Checking", kind: "" };
+  if (isFlagged(paper)) return { text: "Flagged", kind: "flag" };
+  return { text: "Clean", kind: "clean" };
 }
 
 function logo(file, label, kind) {
-  if (file.endsWith(".svg")) {
+  if (file.endsWith(".svg") && kind !== "word") {
     const node = document.createElement("span");
     node.className = `mark-svg ${kind || "tool"}`;
     const mask = `url("./logos/${file}") center / contain no-repeat`;
@@ -96,347 +77,469 @@ function logo(file, label, kind) {
   image.src = `./logos/${file}`;
   image.alt = label;
   image.decoding = "async";
+  image.addEventListener("error", () => image.remove());
   return image;
 }
 
-function countText(paper) {
-  const counts = paper.counts || {};
-  const bits = [];
-  if (paper.status === "checking") bits.push("checking");
-  if (counts.holds) bits.push(`${counts.holds} hold`);
-  if (counts.fails) bits.push(`${counts.fails} fail`);
-  if (counts.unchecked) bits.push(`${counts.unchecked} unchecked`);
-  if (counts.error) bits.push(`${counts.error} error`);
-  const n = (paper.segments || []).length;
-  return `${n} claim${n === 1 ? "" : "s"}${bits.length ? ` · ${bits.join(" · ")}` : ""}`;
-}
-
-function place(paper) {
-  const flags = paper.flags || [];
-  const pages = [...new Set(flags.map((flag) => flag.page).filter((page) => Number.isInteger(page)))];
-  const lines = [...new Set(flags.map((flag) => flag.line).filter((line) => Number.isInteger(line)))];
-  const bits = [];
-  if (pages.length === 1) bits.push(`p. ${pages[0]}`);
-  else if (pages.length > 1) bits.push(`p. ${pages.join(", ")}`);
-  if (lines.length === 1) bits.push(`line ${lines[0]}`);
-  else if (lines.length > 1) bits.push(`lines ${lines.join(", ")}`);
-  return bits.join(" · ");
-}
-
-function renderPaper(paper, fresh) {
-  const row = document.createElement("article");
-  row.className = "row";
-  if (fresh && !reduce) row.classList.add("is-fresh");
-
-  if (paper.preview) {
-    const figure = document.createElement("figure");
-    figure.className = "sheetpic";
-    const image = document.createElement("img");
-    image.src = `./data/${paper.preview}`;
-    image.alt = paper.title || paper.slug;
-    image.loading = "lazy";
-    image.decoding = "async";
-    figure.append(image);
-    const where = place(paper);
-    if (where) {
-      const caption = document.createElement("figcaption");
-      caption.className = "where";
-      caption.textContent = where;
-      figure.append(caption);
+function marks(paper) {
+  const row = document.createElement("span");
+  row.className = "marks";
+  for (const mark of paper.marks || []) {
+    if (!mark.logo) continue;
+    const link = document.createElement("a");
+    link.href = mark.href || paper.source_url || "#";
+    if (mark.href || paper.source_url) {
+      link.target = "_blank";
+      link.rel = "noreferrer";
     }
-    row.append(figure);
-  }
-
-  const body = document.createElement("div");
-  const head = document.createElement("div");
-  head.className = "head";
-  const title = document.createElement("h3");
-  title.textContent = paper.title || paper.slug;
-  head.append(title);
-  if ((paper.marks || []).length) {
-    const marks = document.createElement("span");
-    marks.className = "marks";
-    for (const mark of paper.marks) {
-      const link = document.createElement("a");
-      link.href = mark.href;
-      link.rel = "noopener noreferrer";
-      const kind = mark.logo.includes("arxiv") ? "arxiv" : mark.logo.includes("springer") ? "springer" : "tool";
-      link.append(logo(mark.logo, mark.name, kind));
-      marks.append(link);
-    }
-    head.append(marks);
-  }
-  if (isFlagged(paper)) {
-    const tag = document.createElement("span");
-    tag.className = "tag flag";
-    tag.textContent = "FLAGGED";
-    head.append(tag);
-  }
-  if (paper.example) {
-    const tag = document.createElement("span");
-    tag.className = "tag example";
-    tag.textContent = "EXAMPLE";
-    head.append(tag);
-  }
-  body.append(head);
-
-  for (const flag of paper.flags || []) {
-    const line = document.createElement("p");
-    line.className = "flagline";
-    line.textContent = `Eq. (${flag.claim}) FAILS${flag.corrected ? " -> corrected" : ""}`;
-    body.append(line);
-  }
-
-  const bar = document.createElement("div");
-  bar.className = "bar";
-  if (paper.status === "checking") bar.classList.add("is-checking");
-  if (fresh && !reduce) bar.classList.add("is-filling");
-  const segments = paper.segments || [];
-  segments.forEach((verdict, index) => {
-    const seg = document.createElement("span");
-    seg.className = "seg";
-    seg.dataset.v = verdict;
-    seg.title = verdict;
-    if (!reduce) seg.style.animationDelay = `${index * 40}ms`;
-    bar.append(seg);
-  });
-  const summary = countText(paper);
-  bar.setAttribute("role", "img");
-  bar.setAttribute("aria-label", summary);
-  body.append(bar);
-  const counts = document.createElement("p");
-  counts.className = "counts";
-  counts.textContent = summary;
-  body.append(counts);
-
-  if ((paper.tools || []).length) {
-    const tools = document.createElement("div");
-    tools.className = "tools";
-    for (const tool of paper.tools) {
-      const kind = tool.logo.includes("lean") ? "lean" : "tool";
-      tools.append(logo(tool.logo, tool.name, kind));
-    }
-    body.append(tools);
-  }
-
-  const chips = document.createElement("div");
-  chips.className = "chips";
-  for (const role of ["Reader", "Verifier", "Writer"]) {
-    const chip = document.createElement("span");
-    chip.className = "chip";
-    chip.append(logo("telegram.svg", "Telegram", "tg"), document.createTextNode(role));
-    chips.append(chip);
-  }
-  body.append(chips);
-
-  const links = document.createElement("p");
-  links.className = "links";
-  const open = document.createElement("a");
-  open.href = `./demo.html?run=${encodeURIComponent(paper.slug)}`;
-  open.textContent = "Equations";
-  links.append(open);
-  if (paper.report) {
-    const report = document.createElement("a");
-    report.href = `./data/${paper.report}`;
-    report.textContent = "Report";
-    links.append(report);
-  }
-  body.append(links);
-  row.append(body);
-
-  const flagged = (paper.flags || []).filter((flag) => flag.crop || flag.correction_latex);
-  if (flagged.length) {
-    for (const flag of flagged) {
-      const pair = document.createElement("div");
-      pair.className = "pair";
-      if (flag.crop) {
-        const figure = document.createElement("figure");
-        figure.className = "crop";
-        const image = document.createElement("img");
-        image.src = `./data/${flag.crop}`;
-        image.alt = `Equation (${flag.claim}) as printed`;
-        image.loading = "lazy";
-        image.decoding = "async";
-        figure.append(image);
-        pair.append(figure);
-      }
-      if (flag.corrected && flag.correction_latex) {
-        const fix = document.createElement("div");
-        fix.className = "fix";
-        const side = document.createElement("p");
-        side.className = "side";
-        side.textContent = "Corrected";
-        const math = document.createElement("div");
-        math.className = "math";
-        katex.render(flag.correction_latex, math, { throwOnError: false, displayMode: true });
-        fix.append(side, math);
-        pair.append(fix);
-      }
-      if (pair.childElementCount) row.append(pair);
-    }
-  }
-
-  const lines = paper.telegram && paper.telegram.lines;
-  if (lines && lines.length) {
-    const list = document.createElement("ul");
-    list.className = "chat";
-    const who = document.createElement("span");
-    who.className = "who";
-    who.append(logo("telegram.svg", "Telegram", "tg"), document.createTextNode(paper.telegram.role || "writer"));
-    lines.forEach((text, index) => {
-      const item = document.createElement("li");
-      if (index === 0) item.append(who);
-      item.append(document.createTextNode(text));
-      list.append(item);
-    });
-    row.append(list);
+    const kind = mark.name === "arXiv" || mark.name === "Springer" ? "word" : "tool";
+    link.append(logo(mark.logo, mark.name, kind));
+    link.addEventListener("click", (event) => event.stopPropagation());
+    row.append(link);
   }
   return row;
 }
 
-function grouped(papers) {
-  const buckets = new Map();
-  for (const paper of papers) {
-    const subject = typeof paper.subject === "string" ? paper.subject.trim() : "";
-    if (!buckets.has(subject)) buckets.set(subject, []);
-    buckets.get(subject).push(paper);
+function bar(paper) {
+  const row = document.createElement("span");
+  row.className = "bar";
+  row.setAttribute("aria-hidden", "true");
+  for (const verdict of paper.segments || []) {
+    const seg = document.createElement("i");
+    seg.className = "seg";
+    seg.dataset.v = verdict;
+    row.append(seg);
   }
-  const sections = [...buckets.entries()].filter(([, rows]) => rows.length);
-  const rank = (rows) => (rows.some(isFlagged) ? 0 : 1);
-  sections.sort((a, b) => rank(a[1]) - rank(b[1]) || a[0].localeCompare(b[0]));
-  for (const [, rows] of sections) {
-    rows.sort((a, b) => {
-      const flags = Number(isFlagged(b)) - Number(isFlagged(a));
-      if (flags) return flags;
-      return String(b.checked_at || "").localeCompare(String(a.checked_at || ""));
-    });
-  }
-  return sections;
+  return row;
 }
 
-function renderFeed(events, now) {
-  const rows = [...events].sort((a, b) => stamp(b.time) - stamp(a.time)).slice(0, 8);
-  feedEl.replaceChildren();
-  if (!rows.length) {
-    feedEl.hidden = true;
+function openPaper(slug) {
+  const url = new URL(location.href);
+  url.searchParams.set("paper", slug);
+  history.pushState({ paper: slug }, "", url);
+  show();
+}
+
+function closePaper() {
+  const url = new URL(location.href);
+  url.searchParams.delete("paper");
+  history.pushState({}, "", url);
+  show();
+}
+
+function selectedSlug() {
+  return new URL(location.href).searchParams.get("paper");
+}
+
+function matches(paper) {
+  if (!examples && paper.example) return false;
+  if (subject !== "All" && paper.subject !== subject) return false;
+  const flagged = isFlagged(paper);
+  if (status === "Flagged" && !flagged) return false;
+  if (status === "Clean" && (flagged || paper.status === "checking")) return false;
+  const hay = [paper.title, paper.subject, ...(paper.authors || [])].join(" ").toLowerCase();
+  return hay.includes(query.trim().toLowerCase());
+}
+
+function ordered(list) {
+  return list.slice().sort((a, b) => {
+    const flag = Number(isFlagged(b)) - Number(isFlagged(a));
+    if (flag) return flag;
+    const example = Number(Boolean(a.example)) - Number(Boolean(b.example));
+    if (example) return example;
+    return stamp(b.checked_at) - stamp(a.checked_at);
+  });
+}
+
+function liveLine(now) {
+  const flagged = papers.filter(isFlagged).length;
+  const newest = newestEvent(events);
+  const when = newest ? ago(newest.time, now) : "";
+  const bits = [`${papers.length} paper${papers.length === 1 ? "" : "s"}`, `${flagged} flagged`];
+  if (when) bits.push(`updated ${when}`);
+  liveEl.textContent = bits.join(" · ");
+}
+
+function chip(label, pressed, on) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "fchip";
+  button.textContent = label;
+  button.setAttribute("aria-pressed", pressed ? "true" : "false");
+  button.addEventListener("click", on);
+  return button;
+}
+
+function renderFilters() {
+  const focus = document.activeElement === filtersEl.querySelector("input");
+  const caret = focus ? filtersEl.querySelector("input").selectionStart : null;
+  filtersEl.replaceChildren();
+  const listed = examples ? papers : papers.filter((paper) => !paper.example);
+  const subjects = ["All", ...new Set(listed.map((paper) => paper.subject).filter(Boolean))];
+  if (!subjects.includes(subject)) subject = "All";
+  for (const name of subjects) {
+    filtersEl.append(chip(name, subject === name, () => { subject = name; renderGrid(); renderFilters(); }));
+  }
+  if (papers.some((paper) => paper.example)) {
+    filtersEl.append(chip("Examples", examples, () => { examples = !examples; renderGrid(); renderFilters(); }));
+  }
+  const toggle = document.createElement("div");
+  toggle.className = "status";
+  toggle.setAttribute("role", "group");
+  toggle.setAttribute("aria-label", "Status");
+  for (const name of ["All", "Flagged", "Clean"]) {
+    toggle.append(chip(name, status === name, () => { status = name; renderGrid(); renderFilters(); }));
+  }
+  filtersEl.append(toggle);
+  const search = document.createElement("label");
+  search.className = "search";
+  const input = document.createElement("input");
+  input.type = "search";
+  input.placeholder = "Search";
+  input.setAttribute("aria-label", "Search papers");
+  input.value = query;
+  input.addEventListener("input", () => {
+    query = input.value;
+    renderGrid();
+  });
+  search.append(input);
+  filtersEl.append(search);
+  if (focus) {
+    input.focus();
+    if (caret != null) input.setSelectionRange(caret, caret);
+  }
+  builtFilters = true;
+}
+
+function card(paper) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "card";
+  button.addEventListener("click", () => openPaper(paper.slug));
+  if (paper.preview) {
+    const frame = document.createElement("span");
+    frame.className = "page";
+    const image = document.createElement("img");
+    image.src = `./data/${paper.preview}`;
+    image.alt = "";
+    image.decoding = "async";
+    image.loading = "lazy";
+    image.addEventListener("error", () => frame.remove());
+    frame.append(image);
+    button.append(frame);
+  }
+  const head = document.createElement("span");
+  head.className = "meta";
+  head.append(marks(paper));
+  button.append(head);
+  const title = document.createElement("h2");
+  title.textContent = paper.title;
+  button.append(title);
+  const subjectLine = document.createElement("p");
+  subjectLine.className = "subject-name";
+  subjectLine.textContent = paper.subject || "";
+  button.append(subjectLine);
+  button.append(bar(paper));
+  const tags = document.createElement("span");
+  tags.className = "tags";
+  const tag = tagOf(paper);
+  const statusTag = document.createElement("span");
+  statusTag.className = `tag ${tag.kind}`;
+  statusTag.textContent = tag.text;
+  tags.append(statusTag);
+  if (paper.example) {
+    const example = document.createElement("span");
+    example.className = "tag";
+    example.textContent = "Example";
+    tags.append(example);
+  }
+  button.append(tags);
+  return button;
+}
+
+function renderGrid() {
+  const shown = ordered(papers.filter(matches));
+  gridEl.replaceChildren();
+  if (!shown.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "Nothing matches.";
+    gridEl.append(empty);
     return;
   }
-  feedEl.hidden = false;
-  const title = document.createElement("h2");
-  title.textContent = "Activity";
+  for (const paper of shown) gridEl.append(card(paper));
+}
+
+function math(latex, host) {
+  const node = document.createElement("span");
+  node.className = "math";
+  try {
+    katex.render(latex, node, { throwOnError: false, displayMode: true });
+  } catch {
+    node.textContent = latex;
+  }
+  host.append(node);
+}
+
+function printedLabel(paper) {
+  return /v1(?:\b|\/|$)/i.test(paper.source_url || "") ? "Printed (v1)" : "Printed";
+}
+
+function catchBlock(paper) {
+  const flags = (paper.flags || []).filter((flag) => flag.crop || flag.correction_latex);
+  if (!flags.length) return null;
+  const section = document.createElement("section");
+  section.className = "section";
+  const heading = document.createElement("h3");
+  heading.textContent = "The catch";
+  section.append(heading);
+  for (const flag of flags) {
+    const pair = document.createElement("div");
+    pair.className = "pair";
+    if (flag.crop) {
+      const printed = document.createElement("figure");
+      printed.className = "crop";
+      const label = document.createElement("p");
+      label.className = "side";
+      label.textContent = printedLabel(paper);
+      const image = document.createElement("img");
+      image.src = `./data/${flag.crop}`;
+      image.alt = flag.claim ? `Printed equation ${flag.claim}` : "Printed equation";
+      image.addEventListener("error", () => printed.remove());
+      printed.append(label, image);
+      pair.append(printed);
+    }
+    if (flag.correction_latex) {
+      const corrected = document.createElement("div");
+      corrected.className = "fix";
+      const label = document.createElement("p");
+      label.className = "side";
+      label.textContent = "Corrected";
+      corrected.append(label);
+      math(flag.correction_latex, corrected);
+      pair.append(corrected);
+    }
+    section.append(pair);
+  }
+  return section;
+}
+
+function claimRows(run) {
+  const claims = (run && run.verdicts && run.verdicts.claims) || [];
+  if (!claims.length) return null;
+  const numbers = new Map(
+    ((run.equations && run.equations.equations) || []).map((equation) => [equation.id, equation.number || equation.id])
+  );
+  const section = document.createElement("section");
+  section.className = "section";
+  const heading = document.createElement("h3");
+  heading.textContent = "Claims";
   const list = document.createElement("ol");
-  for (const event of rows) {
+  list.className = "claims";
+  for (const claim of claims) {
+    const row = document.createElement("li");
+    row.className = "claim";
+    const name = document.createElement("span");
+    const number = numbers.get(claim.claim) || claim.claim;
+    name.textContent = `(${number})`;
+    const verdict = document.createElement("span");
+    verdict.className = "v";
+    verdict.dataset.v = claim.verdict || "UNCHECKED";
+    verdict.textContent = claim.verdict || "UNCHECKED";
+    row.append(name, verdict);
+    list.append(row);
+  }
+  section.append(heading, list);
+  return section;
+}
+
+function toolRow(paper) {
+  if (!(paper.tools || []).length) return null;
+  const section = document.createElement("section");
+  section.className = "section";
+  const heading = document.createElement("h3");
+  heading.textContent = "Tools";
+  const row = document.createElement("div");
+  row.className = "tools";
+  for (const tool of paper.tools) {
+    const item = document.createElement("span");
+    item.className = "tool";
+    if (tool.logo) item.append(logo(tool.logo, tool.name, "tool"));
+    const name = document.createElement("span");
+    name.textContent = tool.name;
+    item.append(name);
+    row.append(item);
+  }
+  section.append(heading, row);
+  return section;
+}
+
+function activity(paper) {
+  const mine = events.filter((event) => event.slug === paper.slug && event.time);
+  const lines = (paper.telegram && paper.telegram.lines) || [];
+  if (!mine.length && !lines.length) return null;
+  const section = document.createElement("section");
+  section.className = "section";
+  const heading = document.createElement("h3");
+  heading.textContent = "Activity";
+  const list = document.createElement("ol");
+  list.className = "activity";
+  for (const event of mine) {
     const item = document.createElement("li");
+    const text = document.createElement("p");
+    const role = document.createElement("span");
+    role.className = "role";
+    role.append(logo("telegram.svg", "Telegram", "tg"));
+    const who = document.createElement("span");
+    who.textContent = event.role ? event.role[0].toUpperCase() + event.role.slice(1) : "Bot";
+    role.append(who);
+    text.append(role);
+    text.append(document.createTextNode(` ${event.event || ""}`.trimEnd()));
+    if (event.detail) text.append(document.createTextNode(` — ${event.detail}`));
     const when = document.createElement("p");
     when.className = "when";
-    const relative = ago(event.time, now);
-    when.textContent = [event.role, relative].filter(Boolean).join(" · ");
-    const what = document.createElement("p");
-    what.className = "what";
-    what.textContent = event.detail ? `${event.event}. ${event.detail}` : event.event;
-    item.append(when, what);
+    when.textContent = ago(event.time, Date.now());
+    item.append(text, when);
     list.append(item);
   }
-  feedEl.append(title, list);
+  for (const line of lines) {
+    const item = document.createElement("li");
+    const text = document.createElement("p");
+    const prefix = `${paper.slug}: `;
+    text.textContent = line.startsWith(prefix) ? line.slice(prefix.length) : line;
+    item.append(text);
+    list.append(item);
+  }
+  section.append(heading, list);
+  return section;
 }
 
-function totalText(checked, flagged, claims, checking) {
-  const text = `${checked} paper${checked === 1 ? "" : "s"} checked · ${flagged} flagged · ${claims} claim${claims === 1 ? "" : "s"}`;
-  return checking ? `${text} · ${checking} checking` : text;
-}
-
-function renderTotal(papers) {
-  const checking = papers.filter((paper) => paper.status === "checking").length;
-  const next = {
-    checked: papers.length - checking,
-    flagged: papers.filter(isFlagged).length,
-    claims: papers.reduce((sum, paper) => sum + (paper.segments || []).length, 0),
-    checking,
+async function loadRun(slug) {
+  if (runs.has(slug)) return runs.get(slug);
+  const pull = async (name) => {
+    const response = await fetch(`./data/${slug}/${name}.json`);
+    return response.ok ? response.json() : null;
   };
-  const from = previousTotals || (reduce ? next : { checked: 0, flagged: 0, claims: 0, checking });
-  previousTotals = next;
-  if (reduce || (from.checked === next.checked && from.flagged === next.flagged && from.claims === next.claims)) {
-    totalEl.textContent = totalText(next.checked, next.flagged, next.claims, next.checking);
+  const [equations, verdicts] = await Promise.all([pull("equations"), pull("verdicts")]);
+  const run = { equations, verdicts };
+  runs.set(slug, run);
+  return run;
+}
+
+async function renderDetail(paper) {
+  detailEl.hidden = false;
+  filtersEl.hidden = true;
+  gridEl.hidden = true;
+  detailEl.replaceChildren();
+  const back = document.createElement("p");
+  back.className = "back";
+  const link = document.createElement("a");
+  link.href = "./papers.html";
+  link.textContent = "Checked papers";
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    closePaper();
+  });
+  back.append(link);
+  const head = document.createElement("div");
+  head.className = "detail-head";
+  if (paper.preview) {
+    const frame = document.createElement("figure");
+    frame.className = "page";
+    const image = document.createElement("img");
+    image.src = `./data/${paper.preview}`;
+    image.alt = `First page of ${paper.title}`;
+    image.addEventListener("error", () => frame.remove());
+    frame.append(image);
+    head.append(frame);
+  }
+  const copy = document.createElement("div");
+  copy.append(marks(paper));
+  const title = document.createElement("h2");
+  title.textContent = paper.title;
+  copy.append(title);
+  if (paper.subject) {
+    const subjectLine = document.createElement("p");
+    subjectLine.className = "subject-name";
+    subjectLine.textContent = paper.subject;
+    copy.append(subjectLine);
+  }
+  const tags = document.createElement("p");
+  tags.className = "tags";
+  const tag = tagOf(paper);
+  const statusTag = document.createElement("span");
+  statusTag.className = `tag ${tag.kind}`;
+  statusTag.textContent = tag.text;
+  tags.append(statusTag);
+  if (paper.example) {
+    const example = document.createElement("span");
+    example.className = "tag";
+    example.textContent = "Example";
+    tags.append(example);
+  }
+  copy.append(tags, bar(paper));
+  head.append(copy);
+  detailEl.append(back, head);
+  const found = catchBlock(paper);
+  if (found) detailEl.append(found);
+  const run = await loadRun(paper.slug);
+  if (selectedSlug() !== paper.slug) return;
+  const claims = claimRows(run);
+  if (claims) detailEl.append(claims);
+  const tools = toolRow(paper);
+  if (tools) detailEl.append(tools);
+  const feed = activity(paper);
+  if (feed) detailEl.append(feed);
+  const more = document.createElement("p");
+  more.className = "more";
+  const equations = document.createElement("a");
+  equations.href = `./demo.html?run=${encodeURIComponent(paper.slug)}`;
+  equations.textContent = "Equations";
+  more.append(equations);
+  detailEl.append(more);
+  document.title = `${paper.title} — Sanity`;
+}
+
+function show() {
+  liveLine(Date.now());
+  const slug = selectedSlug();
+  const paper = slug && papers.find((item) => item.slug === slug);
+  if (paper) {
+    renderDetail(paper);
     return;
   }
-  const started = performance.now();
-  const tick = (now) => {
-    const t = Math.min(1, (now - started) / 800);
-    const ease = 1 - (1 - t) ** 3;
-    const mix = (key) => Math.round(from[key] + (next[key] - from[key]) * ease);
-    totalEl.textContent = totalText(mix("checked"), mix("flagged"), mix("claims"), next.checking);
-    if (t < 1) requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
+  detailEl.hidden = true;
+  detailEl.replaceChildren();
+  filtersEl.hidden = false;
+  gridEl.hidden = false;
+  document.title = "Checked papers — Sanity";
+  if (!builtFilters) renderFilters();
+  renderGrid();
 }
 
-function render(papers, events, changed) {
-  const now = Date.now();
-  renderTotal(papers);
-  const when = latest(papers, events, now);
-  liveEl.textContent = when ? `LIVE · last update ${ago(when, now)}` : "LIVE";
-  renderFeed(events, now);
-  subjectsEl.replaceChildren();
-  for (const [subject, rows] of grouped(papers)) {
-    const section = document.createElement("section");
-    if (subject) {
-      const heading = document.createElement("h2");
-      heading.className = "subject";
-      heading.append(pictogram(subject), document.createTextNode(subject));
-      section.append(heading);
-    }
-    for (const paper of rows) {
-      const fresh = !seen.has(paper.slug) || changed.has(paper.slug);
-      section.append(renderPaper(paper, fresh || seen.size === 0));
-    }
-    subjectsEl.append(section);
-  }
-  seen = new Map(papers.map((paper) => [paper.slug, JSON.stringify({
-    segments: paper.segments,
-    status: paper.status,
-    counts: paper.counts,
-  })]));
-}
-
-async function pull() {
+async function poll() {
   const bust = Date.now();
-  const [papersRes, activityRes] = await Promise.all([
+  const [paperRes, eventRes] = await Promise.all([
     fetch(`./data/papers.json?t=${bust}`),
     fetch(`./data/activity.json?t=${bust}`),
   ]);
-  if (!papersRes.ok) throw new Error(String(papersRes.status));
-  const papers = (await papersRes.json()).papers || [];
-  const events = activityRes.ok ? ((await activityRes.json()).events || []) : [];
-  const paperKey = JSON.stringify(papers);
-  const eventKey = JSON.stringify(events);
-  if (paperKey === lastPapers && eventKey === lastEvents) {
-    const now = Date.now();
-    const when = latest(papers, events, now);
-    liveEl.textContent = when ? `LIVE · last update ${ago(when, now)}` : "LIVE";
-    renderFeed(events, now);
+  if (!paperRes.ok) return;
+  const paperText = await paperRes.text();
+  const eventText = eventRes.ok ? await eventRes.text() : lastEvents;
+  const changed = paperText !== lastPapers || eventText !== lastEvents;
+  lastPapers = paperText;
+  lastEvents = eventText;
+  if (!changed && builtFilters) {
+    liveLine(Date.now());
     return;
   }
-  const changed = new Set();
-  if (seen.size) {
-    for (const paper of papers) {
-      const next = JSON.stringify({ segments: paper.segments, status: paper.status, counts: paper.counts });
-      if (seen.get(paper.slug) !== next) changed.add(paper.slug);
-    }
-  }
-  lastPapers = paperKey;
-  lastEvents = eventKey;
-  render(papers, events, changed);
+  papers = JSON.parse(paperText).papers || [];
+  events = eventText ? (JSON.parse(eventText).events || []) : [];
+  runs.clear();
+  builtFilters = false;
+  show();
 }
 
-async function start() {
-  try {
-    await pull();
-  } catch {
-    totalEl.textContent = "The index did not load.";
-  }
-}
-
-start();
-setInterval(() => {
-  pull().catch(() => {});
-}, 15000);
+window.addEventListener("popstate", show);
+poll();
+setInterval(poll, 15000);

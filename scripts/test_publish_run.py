@@ -51,7 +51,7 @@ def test_epjc_mark_follows_the_doi():
         "10.1140/epjc/s10052-025-14303-w",
         logos,
     )
-    assert [mark["name"] for mark in marks] == ["arXiv", "EPJC", "Springer"]
+    assert [mark["name"] for mark in marks] == ["arXiv", "Springer"]
 
 
 def test_publish_is_idempotent_and_keeps_real_timestamps(tmp_path):

@@ -174,12 +174,9 @@ def marks_of(source_url: str | None, journal_ref: str | None, doi: str | None, l
     marks = []
     if source_url and "arxiv.org" in source_url and (logos / "arxiv.svg").is_file():
         marks.append({"name": "arXiv", "logo": "arxiv.svg", "href": source_url})
-    if is_epjc(journal_ref, doi):
+    if is_epjc(journal_ref, doi) and (logos / "springer.svg").is_file():
         href = f"https://doi.org/{doi}" if doi else source_url
-        if (logos / "epjc.png").is_file():
-            marks.append({"name": "EPJC", "logo": "epjc.png", "href": href})
-        if (logos / "springer.svg").is_file():
-            marks.append({"name": "Springer", "logo": "springer.svg", "href": href})
+        marks.append({"name": "Springer", "logo": "springer.svg", "href": href})
     return marks
 
 

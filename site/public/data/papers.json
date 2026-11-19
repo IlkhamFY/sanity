@@ -72,11 +72,6 @@
           "href": "https://arxiv.org/abs/2410.11128v1"
         },
         {
-          "name": "EPJC",
-          "logo": "epjc.png",
-          "href": "https://doi.org/10.1140/epjc/s10052-025-14303-w"
-        },
-        {
           "name": "Springer",
           "logo": "springer.svg",
           "href": "https://doi.org/10.1140/epjc/s10052-025-14303-w"
@@ -137,7 +132,8 @@
           "(4) FAILED — tau = b/m is a units typo. Use 2m/b.",
           "Report: runs/example-oscillator/REPORT.md"
         ]
-      }
+      },
+      "marks": []
     }
   ]
 }

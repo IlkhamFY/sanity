@@ -54,24 +54,56 @@ def _save_webp(pix, dest: Path) -> None:
 
 
 def preview_clip(page):
-    """Title block through the abstract lead, with the blank top margin trimmed."""
+    """Title, authors, and the abstract lead, without the blank margin or a side stamp."""
     import pymupdf
 
-    content_top = None
+    blocks = []
     for block in page.get_text("dict").get("blocks", []):
         if block.get("type") != 0:
             continue
-        y0 = block["bbox"][1]
-        if y0 < 36:
+        box = pymupdf.Rect(block["bbox"])
+        if box.y0 < 36:
             continue
-        content_top = y0 if content_top is None else min(content_top, y0)
-    top = page.rect.y0 if content_top is None else max(page.rect.y0, content_top - 22)
-    cut = max(top + 36, page.rect.y0 + page.rect.height * PREVIEW_FRACTION)
-    ceiling = page.rect.y0 + page.rect.height * 0.62
+        # A tall thin box is the vertical arXiv stamp, not the title block.
+        if box.width < 48 and box.height > 80:
+            continue
+        blocks.append(box)
+    if not blocks:
+        height = page.rect.height * PREVIEW_FRACTION
+        return pymupdf.Rect(page.rect.x0, page.rect.y0, page.rect.x1, page.rect.y0 + height)
+    title_top = min(box.y0 for box in blocks)
+    body = [box for box in blocks if box.y0 < page.rect.height * 0.7]
+    left = min(box.x0 for box in body)
+    right = max(box.x1 for box in body)
+    cut = title_top + 48
+    heading = None
     for hit in page.search_for("Abstract"):
-        if hit.y0 <= ceiling and hit.y1 >= cut - page.rect.height * 0.08:
-            cut = max(cut, min(hit.y1 + 72, ceiling))
-    return pymupdf.Rect(page.rect.x0, top, page.rect.x1, min(cut, ceiling))
+        if title_top < hit.y0 <= page.rect.height * 0.55:
+            heading = hit
+            break
+    if heading is not None:
+        cut = heading.y1 + 8
+        stop = False
+        for block in page.get_text("dict").get("blocks", []):
+            if block.get("type") != 0:
+                continue
+            for line in block.get("lines", []):
+                box = pymupdf.Rect(line["bbox"])
+                if box.y0 < heading.y1 - 1 or box.y0 > page.rect.height * 0.8:
+                    continue
+                text = "".join(span["text"] for span in line["spans"]).strip()
+                if not text or text == "Abstract":
+                    continue
+                cut = box.y1 + 14
+                # A line that actually ends the sentence. Mid-line periods keep going
+                # so the crop does not stop on "systems. We propose".
+                if text.endswith((".", "!", "?")):
+                    stop = True
+                    break
+            if stop:
+                break
+    clip = pymupdf.Rect(left - 16, title_top - 18, right + 16, cut)
+    return clip & page.rect
 
 
 def render_preview(pdf_path: Path, dest: Path, width: int = PREVIEW_WIDTH) -> None:
