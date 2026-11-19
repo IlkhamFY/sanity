@@ -1,6 +1,7 @@
 """Telegram publisher. The only process that commits this repo.
 
     SANITY_PUBLISHER_BOT_TOKEN=... SANITY_DEPLOY_KEY=... python3 scripts/publisher.py
+    # or put the token in ~/.sanity/publisher_token (SANITY_PUBLISHER_BOT_TOKEN_FILE)
     python3 scripts/publisher.py --dry-run
 
 It reads the group with getUpdates and its own bot token. It acts on two headers:
@@ -464,11 +465,32 @@ class BotApi:
         self.call("sendMessage", {"chat_id": chat_id, "text": text[:3500]})
 
 
-def serve(repo: Path, *, dry_run: bool) -> None:
-    token = os.environ.get("SANITY_PUBLISHER_BOT_TOKEN") or ""
-    key = os.environ.get("SANITY_DEPLOY_KEY") or ""
+def read_bot_token() -> str:
+    """Env SANITY_PUBLISHER_BOT_TOKEN, or the file at SANITY_PUBLISHER_BOT_TOKEN_FILE.
+
+    The file default is ~/.sanity/publisher_token. Whitespace and a leading BOM are stripped.
+    """
+    raw = os.environ.get("SANITY_PUBLISHER_BOT_TOKEN")
+    if raw is None or not raw.strip("\ufeff").strip():
+        path = Path(
+            os.environ.get("SANITY_PUBLISHER_BOT_TOKEN_FILE")
+            or Path.home() / ".sanity" / "publisher_token"
+        )
+        if not path.is_file():
+            raise SystemExit(
+                "SANITY_PUBLISHER_BOT_TOKEN is not set and "
+                f"{path} does not exist"
+            )
+        raw = path.read_text(encoding="utf-8-sig")
+    token = raw.strip("\ufeff").strip()
     if not token:
-        raise SystemExit("SANITY_PUBLISHER_BOT_TOKEN is not set")
+        raise SystemExit("SANITY_PUBLISHER_BOT_TOKEN is empty")
+    return token
+
+
+def serve(repo: Path, *, dry_run: bool) -> None:
+    token = read_bot_token()
+    key = os.environ.get("SANITY_DEPLOY_KEY") or ""
     if not dry_run and not key:
         raise SystemExit("SANITY_DEPLOY_KEY is not set")
     if key and not Path(key).is_file():

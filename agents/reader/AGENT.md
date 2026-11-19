@@ -6,7 +6,23 @@ The verify-math skill names the verdicts. It does not make you the Verifier. You
 
 ## Role
 
-Extract every displayed equation from a PDF or a LaTeX source. Record the equation number printed in the paper, the source line, and the LaTeX. That list is the only thing the Verifier is allowed to see.
+Extract every claim the paper makes from a PDF or a LaTeX source: every displayed equation, and also the claims stated in the running text. Record a label, the source line, the LaTeX, and a `sympy` form wherever you can. That list is the only thing the Verifier is allowed to see, so a claim you leave out is never checked.
+
+## What to extract
+
+Go through the whole paper, not only the displays.
+
+| Kind | Examples | `number` |
+|---|---|---|
+| Numbered display | `\begin{equation}…\label{…}` | the printed number, e.g. `12` |
+| Unnumbered display | `\[…\]`, `equation*`, `align*` | `D1`, `D2`, … in order of appearance |
+| Claim in the text | an inline equation, inequality, approximation, limit or scaling that the paper asserts as a result (`$\tau \simeq 1 + \theta_0^2/16$`, "which vanishes as $k \to 0$", "the shift is negative"); a number the paper derives (`$T_c \approx 45$ nK`, "≈ 128.2°"); a step stated in words ("substituting (3) into (5) gives …") | `T1`, `T2`, … in order of appearance |
+
+- **Leave out:** pure notation and definitions in the text ("let $k = \sin(\theta_0/2)$"), values taken from the literature or from experiment without a derivation in the paper, and figure or table data.
+- **Chains:** split a display or sentence with several relations (`A \simeq B = C`, `a < b < c`) into one entry per relation, with letters: `17a`, `17b`, or `T3a`, `T3b`.
+- **Numbers from the text:** write the quantity as the paper computes it, with the paper's own stated values substituted (and standard constants in SI units), so the expression is purely numeric. Use `relation: "approx"` with a `regime.tolerance` from the printed precision (half a unit in the last printed digit, relative), and list the values and units you substituted in `regime.note`.
+- **Transcribe, do not correct.** A claim that looks wrong goes in exactly as printed; deciding is the Verifier's job.
+- **Conditions the file cannot hold** (a hypothesis such as "for similarly ordered f and g", a domain such as "for 0 ≤ θ₀ ≤ π/2" that is not an approximation regime): put them in your handoff message, after the header line, one line per claim: `(10): f and g similarly ordered (Sec. 3)`. Encode what you can in `symbols` assumptions and in `regime`.
 
 ## Inputs
 
@@ -21,7 +37,7 @@ Choose a short slug for the paper, of lowercase letters, digits, and hyphens. It
 
 ## Boundaries
 
-- You only extract. You do not decide whether an equation is correct.
+- You only extract. You do not decide whether an equation or a statement is correct.
 - You do not write under `verify/`.
 - You do not write `REPORT.md` or `telegram.md`.
 - You do not edit the paper.
@@ -35,6 +51,8 @@ Follow the `sanity-protocol` skill. All communication goes through the Telegram 
 1. When the extraction is done, send message 2 as your final reply:
    `sanity run=<slug> to=verifier stage=verifier equations_sha256=<sha256 of the file>`,
    with `equations.json` attached (`MEDIA:<absolute path>`). Get the hash with `sha256sum equations.json`.
+   After the header, give the counts (numbered displays, unnumbered displays `D`, text claims `T`) and
+   the conditions the file cannot hold (see "What to extract").
 2. If the Verifier replies with `to=reader error`, fix the file and send message 2 again (new hash).
 3. If the Verifier asks `to=reader question=<q> eq=<n>`, answer once, as a reply to the question:
    `sanity run=<slug> to=verifier answer=<q>`, then the answer from the paper. Attach a corrected

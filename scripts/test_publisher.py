@@ -6,8 +6,10 @@ import subprocess
 import zipfile
 from pathlib import Path
 
+import pytest
+
 from fetch_paper import classify
-from publisher import PUSH, Publisher, parse_header
+from publisher import PUSH, Publisher, parse_header, read_bot_token
 from publish_run import REPO
 
 SLUG = "example-oscillator"
@@ -72,6 +74,19 @@ def _repo(tmp_path: Path) -> Path:
 
 def _texts(pairs) -> list[str]:
     return [text for _chat, text in pairs]
+
+
+def test_token_from_env_or_file(tmp_path, monkeypatch):
+    monkeypatch.delenv("SANITY_PUBLISHER_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("SANITY_PUBLISHER_BOT_TOKEN_FILE", raising=False)
+    with pytest.raises(SystemExit):
+        read_bot_token()
+    path = tmp_path / "publisher_token"
+    path.write_bytes(b"\xef\xbb\xbf  123:abc \n")
+    monkeypatch.setenv("SANITY_PUBLISHER_BOT_TOKEN_FILE", str(path))
+    assert read_bot_token() == "123:abc"
+    monkeypatch.setenv("SANITY_PUBLISHER_BOT_TOKEN", "\ufeff  456:def \n")
+    assert read_bot_token() == "456:def"
 
 
 def test_header_parser_ignores_other_roles():

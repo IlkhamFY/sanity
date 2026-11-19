@@ -177,7 +177,7 @@ To stop: `stop <slug>`.
 ## 8. The publisher
 
 `scripts/publisher.py` is a daemon, not a Hermes bot. It polls the group with its
-own bot token (`SANITY_PUBLISHER_BOT_TOKEN`) and pushes with a deploy key
+own bot token (`SANITY_PUBLISHER_BOT_TOKEN`, or the file at `SANITY_PUBLISHER_BOT_TOKEN_FILE`, default `~/.sanity/publisher_token`) and pushes with a deploy key
 (`SANITY_DEPLOY_KEY`). It is the only process that commits or pushes. The branch
 is `data`, never `main`, and the push is never a force push. A publish that fails
 the guard is not committed. The reply in the group is `published <slug> -> <url>`

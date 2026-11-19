@@ -53,7 +53,7 @@ $env:SANITY_PUBLISHER_BOT_TOKEN = "the token from BotFather"
 $env:SANITY_DEPLOY_KEY = "$env:USERPROFILE\.ssh\sanity_publisher"
 ```
 
-Those are the two variables. Optional: `SANITY_SITE_URL` (default `https://ilkhamfy.github.io/sanity`) and `SANITY_PUBLISHER_STATE` (default `~/.sanity/publisher-state.json`, the seen message ids).
+Those are the two variables. If `SANITY_PUBLISHER_BOT_TOKEN` is unset, the daemon reads the token from the file at `SANITY_PUBLISHER_BOT_TOKEN_FILE` (default `~/.sanity/publisher_token`) and strips whitespace and a leading BOM. Optional: `SANITY_SITE_URL` (default `https://ilkhamfy.github.io/sanity`) and `SANITY_PUBLISHER_STATE` (default `~/.sanity/publisher-state.json`, the seen message ids).
 
 ## 3. Run it on the Windows host
 
