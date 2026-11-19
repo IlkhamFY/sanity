@@ -27,6 +27,12 @@
       "role": "writer",
       "event": "published the report",
       "detail": "Eq. (4.4) in v1 fails."
+    },
+    {
+      "time": "2026-11-19T05:27:28Z",
+      "slug": "arxiv-2410-11128",
+      "role": "writer",
+      "event": "Writer: publisher online"
     }
   ]
 }
