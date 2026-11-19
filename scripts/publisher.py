@@ -9,8 +9,10 @@ It reads the group with getUpdates and its own bot token. It acts on two headers
     sanity run=<slug> to=publisher stage=publish
     sanity run=<slug> to=publisher stage=event
 
-stage=publish carries one zip (equations.json, verdicts.json, report.html, meta.json,
-and the check scripts). The daemon validates it, runs publish_run.py, and commits
+stage=publish carries one zip (equations.json, verdicts.json, report.html,
+and the check scripts). meta.json is the Reader's record, carried through the
+Verifier. If the zip has none, the daemon builds it. It validates the bundle,
+runs publish_run.py, and commits
 as Ilkham Yabbarov <ilkhamfy@gmail.com> with message "site". The push goes to
 branch data and is never a force push. The same zip twice does not make a second
 commit. stage=event appends one activity line.
@@ -38,17 +40,19 @@ import shutil
 import subprocess
 import time
 import zipfile
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from fetch_paper import classify, subject_errors
+from fetch_paper import FetchError, build_file_meta, build_meta, classify, remote_entry, subject_errors
 from guard import (
     EQUATIONS_SCHEMA,
     META_SCHEMA,
     VERDICTS_SCHEMA,
     _schema_errors,
     _script_errors,
+    equation_names,
     external_script_errors,
     failing_claims,
     report_section_text,
@@ -64,7 +68,12 @@ EMAIL = "ilkhamfy@gmail.com"
 PUSH = ["git", "push", "origin", "HEAD:data"]
 SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 GAP = 1.0
-BUNDLE = ("equations.json", "report.html", "meta.json")
+BUNDLE = ("equations.json", "report.html")
+PAPER_SUFFIXES = {".pdf", ".tex", ".md", ".markdown"}
+NOT_A_PAPER = {"report.md", "telegram.md", "plan.md", "results.md", "readme.md"}
+NULLABLE = {"arxiv_id", "version", "primary_category", "doi", "journal_ref", "fetched_at", "example"}
+_ARXIV_ID = re.compile(r"^\d{4}\.\d{4,5}(?:v\d+)?$", re.I)
+_DOI_ID = re.compile(r"^10\.\d{4,9}/\S+$")
 MAX_DOCUMENT = 20 * 1024 * 1024
 ZIP_MIME = {"application/zip", "application/x-zip-compressed", "application/x-zip"}
 HEADER_HINT = (
@@ -99,6 +108,10 @@ def parse_header(text: str) -> dict | None:
     if fields.get("stage") not in {"publish", "event"}:
         return None
     if not SLUG.fullmatch(fields.get("run") or ""):
+        return None
+    if "arxiv" in fields and not _ARXIV_ID.fullmatch(fields["arxiv"]):
+        return None
+    if "doi" in fields and not _DOI_ID.fullmatch(fields["doi"]):
         return None
     return fields
 
@@ -172,6 +185,141 @@ def safe_unzip(blob: bytes, dest: Path) -> None:
             target = dest.joinpath(*path.parts)
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(archive.read(info))
+
+
+def _blank(value) -> bool:
+    return value is None or value == "" or value == []
+
+
+def _needs(meta: dict, key: str) -> bool:
+    """A field the zip left out. Explicit nulls (no arXiv id, no DOI) stay null."""
+    if key not in meta:
+        return True
+    if key in NULLABLE:
+        return False
+    return _blank(meta.get(key))
+
+
+def _now_stamp(now) -> str:
+    when = now or datetime.now(timezone.utc)
+    return when.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def find_paper(run: Path) -> Path | None:
+    """A pdf, tex, or md file in the bundle. source/ and paper.* come first."""
+    found = [
+        path for path in run.rglob("*")
+        if path.is_file()
+        and path.suffix.lower() in PAPER_SUFFIXES
+        and path.name.lower() not in NOT_A_PAPER
+        and "__pycache__" not in path.parts
+        and "verify" not in path.parts
+    ]
+    if not found:
+        return None
+
+    def rank(path: Path) -> tuple:
+        rel = path.relative_to(run).as_posix()
+        return (0 if rel.startswith("source/") else 1, 0 if path.name.lower().startswith("paper.") else 1, rel)
+
+    return sorted(found, key=rank)[0]
+
+
+def _html_section(html: str, word: str) -> str:
+    match = re.search(
+        rf"<h[1-3][^>]*>[^<]*{word}[^<]*</h[1-3]>(.*?)(?=<h[1-3][\s>]|$)",
+        html or "",
+        re.I | re.S,
+    )
+    if not match:
+        return ""
+    text = re.sub(r"<[^>]+>", " ", match.group(1))
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def keep_fails_only(text: str, fails: set[str]) -> str:
+    """Drop sentences that name an equation whose verdict is not FAILS."""
+    kept = []
+    for sentence in re.split(r"(?<=[.!?])\s+", (text or "").strip()):
+        if not sentence:
+            continue
+        if equation_names(sentence) <= fails:
+            kept.append(sentence)
+    return " ".join(kept).strip()
+
+
+def _fresh_meta(run: Path, header: dict, *, opener, sleeper, stamp: str) -> dict:
+    """Metadata when the zip did not bring a complete record. No bot has to pass it."""
+    slug = header["run"]
+    spec = header.get("arxiv") or header.get("doi")
+    if spec:
+        entry = remote_entry(spec, opener=opener, sleeper=sleeper)
+        meta = build_meta(entry, stamp)
+        meta["slug"] = slug
+        return meta
+    paper = find_paper(run)
+    if paper is not None:
+        return build_file_meta(paper, slug, stamp)
+    equations = load_json(run / "equations.json") if (run / "equations.json").is_file() else {}
+    report = (run / "REPORT.md").read_text(encoding="utf-8") if (run / "REPORT.md").is_file() else ""
+    title = equations.get("title") if isinstance(equations, dict) else None
+    if not title:
+        heading = re.search(r"^#\s+(.+)$", report, re.M)
+        title = heading.group(1).strip() if heading else None
+    return {
+        "title": title or slug,
+        "authors": ["unknown"],
+        "abstract": "",
+        "arxiv_id": None,
+        "version": None,
+        "primary_category": None,
+        "doi": None,
+        "journal_ref": None,
+        "fetched_at": stamp,
+        "slug": slug,
+        "subject": "unknown",
+        "example": True,
+        "source": "file",
+    }
+
+
+def ensure_meta(run: Path, header: dict, *, opener=None, sleeper=time.sleep, now=None) -> dict:
+    """Use the zip's meta.json when it is there. Build one only when it is missing or incomplete."""
+    path = run / "meta.json"
+    meta = load_json(path) if path.is_file() else {}
+    if not isinstance(meta, dict):
+        meta = {}
+    stamp = _now_stamp(now)
+    bibliographic = (
+        "title", "authors", "abstract", "arxiv_id", "version", "primary_category",
+        "doi", "journal_ref", "fetched_at", "slug", "subject", "example", "source",
+    )
+    if any(_needs(meta, key) for key in bibliographic):
+        fresh = _fresh_meta(run, header, opener=opener, sleeper=sleeper, stamp=stamp)
+        for key in bibliographic:
+            if _needs(meta, key):
+                meta[key] = fresh.get(key)
+    if _blank(meta.get("slug")):
+        meta["slug"] = header["run"]
+    verdicts_path = find_verdicts(run)
+    fails = failing_claims(load_json(verdicts_path)) if verdicts_path is not None else set()
+    html = (run / "report.html").read_text(encoding="utf-8") if (run / "report.html").is_file() else ""
+    telegram = (run / "telegram.md").read_text(encoding="utf-8") if (run / "telegram.md").is_file() else ""
+    summary = _html_section(html, "summary") or telegram
+    catch = _html_section(html, "catch")
+    if _blank(meta.get("summary")) and summary:
+        meta["summary"] = keep_fails_only(summary, fails)
+    elif meta.get("summary"):
+        meta["summary"] = keep_fails_only(str(meta["summary"]), fails)
+    if _blank(meta.get("catch")) and catch:
+        meta["catch"] = keep_fails_only(catch, fails)
+    elif meta.get("catch"):
+        meta["catch"] = keep_fails_only(str(meta["catch"]), fails)
+    for key in ("summary", "catch"):
+        if key in meta and not str(meta[key]).strip():
+            del meta[key]
+    path.write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return meta
 
 
 def bundle_missing(run: Path) -> list[str]:
@@ -319,13 +467,16 @@ def copy_tree(src: Path, dest: Path) -> None:
 
 
 class Publisher:
-    def __init__(self, repo: Path, *, site: str = SITE, deploy_key: str | None = None, dry_run: bool = False, fetch: bool = True, push: bool = True):
+    def __init__(self, repo: Path, *, site: str = SITE, deploy_key: str | None = None, dry_run: bool = False, fetch: bool = True, push: bool = True, opener=None, sleeper=time.sleep, clock=None):
         self.repo = repo
         self.site = site
         self.deploy_key = deploy_key
         self.dry_run = dry_run
         self.fetch = fetch
         self.push = push and not dry_run and bool(deploy_key)
+        self.opener = opener
+        self.sleeper = sleeper
+        self.clock = clock
         self.seen: set[str] = set()
         self.queue: list[tuple[int, str, int | None]] = []
         self.last_send = -1e9
@@ -407,7 +558,7 @@ class Publisher:
             )
         blob = blobs[file_id]
         if name.lower().endswith(".zip") or blob[:2] == b"PK":
-            return self._publish_zip(header["run"], blob)
+            return self._publish_zip(header, blob)
         group = message.get("media_group_id") or header["run"]
         slot = self.pending.setdefault(group, {"slug": header["run"], "files": {}, "started": now})
         slot["files"][Path(name).name] = blob
@@ -422,7 +573,7 @@ class Publisher:
                 for filename, data in slot["files"].items():
                     (folder / filename).write_bytes(data)
                 self.pending.pop(group, None)
-                return self._publish_tree(header["run"], folder)
+                return self._publish_tree(header, folder)
             finally:
                 shutil.rmtree(folder, ignore_errors=True)
         if now - slot["started"] > 8:
@@ -430,22 +581,27 @@ class Publisher:
             raise PublisherError("publish bundle is missing " + ", ".join(sorted(needed - set(slot["files"]))))
         return None
 
-    def _publish_zip(self, slug: str, blob: bytes) -> str:
+    def _publish_zip(self, header: dict, blob: bytes) -> str:
+        slug = header["run"]
         folder = self.repo.parent / f".publish-{slug}"
         if folder.exists():
             shutil.rmtree(folder)
         try:
             safe_unzip(blob, folder)
             unpacked = folder / slug if (folder / slug / "equations.json").is_file() else folder
-            return self._publish_tree(slug, unpacked)
+            return self._publish_tree(header, unpacked)
         finally:
             shutil.rmtree(folder, ignore_errors=True)
 
-    def _publish_tree(self, slug: str, folder: Path) -> str:
+    def _publish_tree(self, header: dict, folder: Path) -> str:
+        slug = header["run"]
+        try:
+            meta = ensure_meta(folder, header, opener=self.opener, sleeper=self.sleeper, now=self.clock)
+        except FetchError as exc:
+            raise PublisherError(str(exc)) from exc
         problems = bundle_problems(folder)
         if problems:
             raise PublisherError("; ".join(problems))
-        meta = load_json(folder / "meta.json")
         if meta.get("slug") not in {None, slug}:
             raise PublisherError(f"meta.json slug is {meta.get('slug')}, header says {slug}")
         equations = load_json(folder / "equations.json")

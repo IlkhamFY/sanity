@@ -117,5 +117,5 @@ Then one message to the publisher, the header as the caption of a single `.zip` 
 sanity run=<slug> to=publisher stage=publish
 ```
 
-The zip contains `equations.json`, `verdicts.json`, `report.html`, `meta.json`, and the check scripts under `verify/checks/`. Summary and catch name only FAILS equations. You do not commit or push. Only the publisher touches GitHub. The LLM bots never hold GitHub credentials.
+The zip contains `equations.json`, `verdicts.json`, `report.html`, `meta.json` from the Verifier's zip when you have it, and the check scripts under `verify/checks/`. If `meta.json` is missing, leave it out, add `arxiv=<id>` or `doi=<doi>` to the header when you know it, and include the paper file when you have it; the publisher builds `meta.json` only then. Summary and catch name only FAILS equations. You do not commit or push. Only the publisher touches GitHub. The LLM bots never hold GitHub credentials.
 A send that returns exit 0 is not proof the message arrived: say so, and ask the operator to check.

@@ -68,7 +68,7 @@ hermes send --quiet --to "$SANITY_GROUP" "sanity run=<slug> to=verifier stage=ve
 <counts and conditions, see step 1> MEDIA:$PWD/<slug>.zip"
 ```
 
-The caption (all text before `MEDIA:`) must stay under 1024 characters; put long lists of conditions in a second, plain message right after. The Verifier passes `meta.json` on to the Writer, who sends it to the publisher.
+The caption (all text before `MEDIA:`) must stay under 1024 characters; put long lists of conditions in a second, plain message right after. The Verifier passes `meta.json` on to the Writer, who sends it to the publisher. That zip is the path the publisher uses. If `meta.json` is missing when the zip arrives, the publisher can rebuild it; still send the file.
 
 1. When the extraction is done, send message 2 with `hermes send` as above: the header
    `sanity run=<slug> to=verifier stage=verifier equations_sha256=<sha256 of equations.json>` as the

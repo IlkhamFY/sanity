@@ -63,7 +63,7 @@ token and accepts only `to=publisher`. That header wakes none of the three bots.
 | 8 | Verifier → Writer | `sanity run=<slug> to=writer stage=writer attempt=<n> equations_sha256=<hex> verdicts_sha256=<hex> bundle_sha256=<hex> code=<commit>`, as the **caption of the bundle** | one file: `<slug>-<n>.zip` (contains `equations.json`, `verify/verdicts.json`, `meta.json`, `verify/checks/`) |
 | 9 | Writer → group | `sanity run=<slug> status=done attempt=<n>` | optional `REPORT.md` |
 | 10 | person → any bot | `stop <slug>`, `rerun <slug>`, `status <slug>`, with the bot's @handle, as a reply to it, or after `sanity run=<slug> to=<role>` | none |
-| 11 | Writer → publisher | `sanity run=<slug> to=publisher stage=publish`, as the **caption of the zip** | one file: a `.zip` with `equations.json`, `verdicts.json`, `report.html`, `meta.json`, the check scripts |
+| 11 | Writer → publisher | `sanity run=<slug> to=publisher stage=publish`, as the **caption of the zip** | one file: a `.zip` with `equations.json`, `verdicts.json`, `report.html`, `meta.json` (the Reader's, when the Verifier sent it), the check scripts; optional paper file |
 | 12 | any bot → publisher | `sanity run=<slug> to=publisher stage=event`, then one line starting `Reader:`, `Verifier:` or `Writer:` | none |
 | 13 | publisher → Writer | `sanity run=<slug> to=writer status=published url=<url>` or `sanity run=<slug> to=writer status=error`, as a reply to 11 | none (the reason follows) |
 
@@ -94,7 +94,11 @@ Notes:
   HOLDS or FAILS verdict names. The publisher validates it, runs `publish_run.py`,
   and commits. The same zip a second time does not make a second commit. LLM bots
   reply `NO_REPLY`. They never hold a GitHub token or deploy key. `meta.json` is the
-  Reader's, carried through the Verifier's bundle (messages 2 and 8).
+  Reader's, carried through the Verifier's bundle (messages 2 and 8), and that is
+  the record that is published. The header may also carry `arxiv=<id>` or
+  `doi=<doi>`. If the zip has no `meta.json`, the publisher builds one from that
+  id, else from a paper file in the zip, else a minimal example record. A summary
+  or catch sentence that names an equation which did not FAIL is dropped.
 - **12**: one activity line, starting `Reader:`, `Verifier:`, or `Writer:`. The publisher appends it (`publish_run.py --event`) and does not
   reply. An LLM bot that sees it replies `NO_REPLY`.
 - **13**: the publisher's reply, as a reply to 11, with a `to=writer` header (see above).

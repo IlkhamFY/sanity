@@ -79,7 +79,7 @@ Do not start it with `docker exec` inside the `hermes` container, and do not cop
 
 | Header | What is attached | What happens |
 | --- | --- | --- |
-| `sanity run=<slug> to=publisher stage=publish` | one `.zip`: `equations.json`, `verdicts.json`, `report.html`, `meta.json`, and the check scripts | validate, `publish_run.py`, commit `site`, push `data` |
+| `sanity run=<slug> to=publisher stage=publish` | one `.zip`: `equations.json`, `verdicts.json`, `report.html`, `meta.json` when the Writer has it, and the check scripts | validate, `publish_run.py`, commit `site`, push `data` |
 | `sanity run=<slug> to=publisher stage=event` | one line, starting with Reader, Verifier, or Writer | append `activity.json` |
 
-`meta.json` comes from `scripts/fetch_paper.py`, for an arXiv id, a DOI, or a pasted file. With no arXiv id and no DOI, `example` is true and the row is filed under Examples. The reply links to `papers.html?paper=<slug>`.
+`meta.json` comes from `scripts/fetch_paper.py`, for an arXiv id, a DOI, or a pasted file, and travels Reader → Verifier → Writer. With no arXiv id and no DOI, `example` is true and the row is filed under Examples. If the zip arrives without `meta.json`, the publisher builds it from `arxiv=` or `doi=` on the header, a paper file in the zip, or a minimal example record. The reply links to `papers.html?paper=<slug>`.

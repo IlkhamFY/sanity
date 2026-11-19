@@ -578,14 +578,8 @@ def _preview_with_poppler(pdf_path: Path, dest: Path) -> None:
     rendered.replace(dest)
 
 
-def fetch_paper(spec: str, repo: Path, *, opener=None, now: datetime | None = None, sleeper=time.sleep, slug: str | None = None) -> Path:
-    """Download into runs/<slug>/source/ and return that directory.
-
-    `spec` is an arXiv id, a DOI, or a local PDF, TeX, or Markdown file.
-    A local file never touches the network.
-    """
-    if is_local_spec(spec):
-        return fetch_local(Path(spec), repo, slug, now)
+def remote_entry(spec: str, *, opener=None, sleeper=time.sleep) -> dict:
+    """Bibliographic fields for an arXiv id or DOI. Same retries and abs-page fallback as fetch_paper."""
     kind, ident, version = parse_spec(spec)
     status, payload = _read(api_url(kind, ident, version), opener, sleeper)
     entry = None
@@ -603,6 +597,18 @@ def fetch_paper(spec: str, repo: Path, *, opener=None, now: datetime | None = No
         raise FetchError(f"arXiv API returned {status}")
     if version and kind == "arxiv":
         entry["version"] = version
+    return entry
+
+
+def fetch_paper(spec: str, repo: Path, *, opener=None, now: datetime | None = None, sleeper=time.sleep, slug: str | None = None) -> Path:
+    """Download into runs/<slug>/source/ and return that directory.
+
+    `spec` is an arXiv id, a DOI, or a local PDF, TeX, or Markdown file.
+    A local file never touches the network.
+    """
+    if is_local_spec(spec):
+        return fetch_local(Path(spec), repo, slug, now)
+    entry = remote_entry(spec, opener=opener, sleeper=sleeper)
     when = (now or datetime.now(timezone.utc)).replace(microsecond=0)
     fetched_at = when.isoformat().replace("+00:00", "Z")
     meta = build_meta(entry, fetched_at)
