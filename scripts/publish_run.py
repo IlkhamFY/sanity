@@ -295,10 +295,34 @@ def _local_pdf(run: Path) -> Path | None:
     return found[0] if found else None
 
 
+def _arxiv_first_page(source_url: str | None) -> str | None:
+    """The arXiv PDF opened on page 1, for when this machine cannot render a crop."""
+    from paper_preview import arxiv_pdf_url
+
+    pdf = arxiv_pdf_url(source_url or "")
+    if not pdf:
+        return None
+    return f"{pdf}#page=1"
+
+
+def _use_arxiv_first_page(entry: dict, reason: str) -> None:
+    page = _arxiv_first_page(entry.get("source_url"))
+    print(
+        f"warning: {reason}; the site uses the arXiv first page later.",
+        file=sys.stderr,
+    )
+    if page:
+        entry["first_page"] = page
+
+
 def attach_images(entry: dict, run: Path, dest: Path, pdf_url: str | None, skip: bool) -> None:
     if skip:
         return
-    from paper_preview import download, render_equation, render_preview, safe_claim
+    try:
+        from paper_preview import download, render_equation, render_preview, safe_claim
+    except ImportError as exc:
+        _use_arxiv_first_page(entry, str(exc))
+        return
 
     pdf = _local_pdf(run)
     temporary = None
@@ -309,16 +333,26 @@ def attach_images(entry: dict, run: Path, dest: Path, pdf_url: str | None, skip:
         except OSError as exc:
             print(f"PDF unavailable: {exc}", file=sys.stderr)
             temporary.unlink(missing_ok=True)
+            _use_arxiv_first_page(entry, "PDF download failed")
             return
         pdf = temporary
     if pdf is None:
+        _use_arxiv_first_page(entry, "no PDF")
         return
     try:
-        render_preview(pdf, dest / "preview.webp")
+        try:
+            render_preview(pdf, dest / "preview.webp")
+        except ImportError as exc:
+            _use_arxiv_first_page(entry, str(exc))
+            return
         entry["preview"] = f"{entry['slug']}/preview.webp"
         for flag in entry.get("flags") or []:
             name = f"eq-{safe_claim(flag['claim'])}.webp"
-            page = render_equation(pdf, dest / name, flag["claim"])
+            try:
+                page = render_equation(pdf, dest / name, flag["claim"])
+            except ImportError as exc:
+                print(f"warning: {exc}; equation crops skipped", file=sys.stderr)
+                break
             if page is None:
                 continue
             flag["crop"] = f"{entry['slug']}/{name}"

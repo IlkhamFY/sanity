@@ -211,23 +211,35 @@ function renderFilters() {
   builtFilters = true;
 }
 
+function pageFrame(paper, { detail }) {
+  const frame = document.createElement(detail ? "figure" : "span");
+  frame.className = "page";
+  if (paper.preview) {
+    const image = document.createElement("img");
+    image.src = `./data/${paper.preview}`;
+    image.alt = detail ? `First page of ${paper.title}` : "";
+    image.decoding = "async";
+    if (!detail) image.loading = "lazy";
+    image.addEventListener("error", () => frame.remove());
+    frame.append(image);
+    return frame;
+  }
+  if (!paper.first_page) return null;
+  const iframe = document.createElement("iframe");
+  iframe.src = paper.first_page;
+  iframe.title = `First page of ${paper.title}`;
+  iframe.loading = "lazy";
+  frame.append(iframe);
+  return frame;
+}
+
 function card(paper) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "card";
   button.addEventListener("click", () => openPaper(paper.slug));
-  if (paper.preview) {
-    const frame = document.createElement("span");
-    frame.className = "page";
-    const image = document.createElement("img");
-    image.src = `./data/${paper.preview}`;
-    image.alt = "";
-    image.decoding = "async";
-    image.loading = "lazy";
-    image.addEventListener("error", () => frame.remove());
-    frame.append(image);
-    button.append(frame);
-  }
+  const frame = pageFrame(paper, { detail: false });
+  if (frame) button.append(frame);
   const head = document.createElement("span");
   head.className = "meta";
   head.append(marks(paper));
@@ -443,16 +455,8 @@ async function renderDetail(paper) {
   back.append(link);
   const head = document.createElement("div");
   head.className = "detail-head";
-  if (paper.preview) {
-    const frame = document.createElement("figure");
-    frame.className = "page";
-    const image = document.createElement("img");
-    image.src = `./data/${paper.preview}`;
-    image.alt = `First page of ${paper.title}`;
-    image.addEventListener("error", () => frame.remove());
-    frame.append(image);
-    head.append(frame);
-  }
+  const frame = pageFrame(paper, { detail: true });
+  if (frame) head.append(frame);
   const copy = document.createElement("div");
   copy.append(marks(paper));
   const title = document.createElement("h2");

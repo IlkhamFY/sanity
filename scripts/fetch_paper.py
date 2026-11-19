@@ -3,8 +3,11 @@
     python3 scripts/fetch_paper.py 2410.11128v1
     python3 scripts/fetch_paper.py 10.1140/epjc/s10052-025-14303-w
 
-Only export.arxiv.org is requested: the Atom API, the PDF, and the e-print.
-A DOI is resolved with the same API. If arXiv has no record, the command stops.
+The Atom API, the PDF, and the e-print come from export.arxiv.org. A 429 or 503
+is retried three times, waiting 5s, then 15s, then 45s. If the API still has no
+entry, an arXiv id falls back to the abs page HTML meta tags. A DOI is resolved
+with the API. If arXiv has no record, the command stops. With neither pymupdf
+nor pdftoppm, the preview is skipped and the publisher renders the first page later.
 """
 
 from __future__ import annotations
@@ -12,7 +15,11 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
+import sys
+import time
 from datetime import datetime, timezone
+from html import unescape
 from pathlib import Path
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -24,6 +31,9 @@ ATOM = "http://www.w3.org/2005/Atom"
 ARXIV_NS = "http://arxiv.org/schemas/atom"
 USER_AGENT = "sanity-fetch/1.0 (mailto:ilkhamfy@gmail.com)"
 NS = {"a": ATOM, "x": ARXIV_NS}
+RETRY_STATUS = {429, 503}
+# After a 429 or 503: wait 5s, try again, wait 15s, try again, wait 45s, try once more.
+BACKOFF_SECONDS = (5, 15, 45)
 
 # The live index files the Kerr run under this one section (site/public/data/papers.json).
 # astro-ph and gr-qc both use it.
@@ -171,7 +181,7 @@ def _request(url: str) -> Request:
     return Request(url, headers={"User-Agent": USER_AGENT})
 
 
-def _read(url: str, opener) -> tuple[int, bytes]:
+def _read_once(url: str, opener) -> tuple[int, bytes]:
     if opener is not None:
         return opener(url)
     try:
@@ -179,18 +189,92 @@ def _read(url: str, opener) -> tuple[int, bytes]:
             return getattr(response, "status", 200), response.read()
     except Exception as exc:
         code = getattr(exc, "code", None)
-        if code == 404:
-            return 404, b""
+        if code in {404, *RETRY_STATUS}:
+            return int(code), b""
         raise FetchError(f"{url}: {exc}") from None
 
 
-def render_preview_png(pdf_path: Path, dest: Path) -> None:
-    """Crop page 1 to the title, authors, and abstract. pymupdf, else pdftoppm."""
+def _read(url: str, opener, sleeper=time.sleep) -> tuple[int, bytes]:
+    """GET `url`. On 429 or 503, wait 5s, 15s, and 45s, trying again after each wait."""
+    status, payload = _read_once(url, opener)
+    for delay in BACKOFF_SECONDS:
+        if status not in RETRY_STATUS:
+            return status, payload
+        sleeper(delay)
+        status, payload = _read_once(url, opener)
+    return status, payload
+
+
+def _metas(html: str, key: str) -> list[str]:
+    found = []
+    want = key.lower()
+    for match in re.finditer(r"<meta\b([^>]*)>", html, re.I):
+        attrs = {
+            name.lower(): unescape(value)
+            for name, _quote, value in re.findall(r"([:\w-]+)\s*=\s*(['\"])(.*?)\2", match.group(1), re.I | re.S)
+        }
+        label = (attrs.get("name") or attrs.get("property") or "").lower()
+        if label == want and attrs.get("content"):
+            text = _collapse(attrs["content"])
+            if text:
+                found.append(text)
+    return found
+
+
+def parse_abs_html(html: str, ident: str, version: str | None) -> dict:
+    """Bibliographic fields from an arXiv abs page, when the API did not answer."""
+    titles = _metas(html, "citation_title")
+    if not titles:
+        raise FetchError("arXiv abs page has no citation_title")
+    raw = (_metas(html, "citation_arxiv_id") or [ident])[0]
+    match = _ARXIV.search(raw)
+    arxiv_id = match.group(1) if match else ident
+    parsed_version = match.group(2).lower() if match and match.group(2) else None
+    if version:
+        parsed_version = version
+    abstract = (_metas(html, "citation_abstract") or _metas(html, "og:description") or [""])[0]
+    doi = (_metas(html, "citation_doi") or [None])[0]
+    journal = (_metas(html, "citation_journal_ref") or [None])[0]
+    category = None
+    subject = re.search(r'class="primary-subject"[^>]*>[^<]*\(([a-z0-9][a-z0-9.-]*)\)', html, re.I)
+    if subject:
+        category = subject.group(1)
+    return {
+        "title": titles[0],
+        "authors": _metas(html, "citation_author"),
+        "abstract": abstract,
+        "arxiv_id": arxiv_id,
+        "version": parsed_version,
+        "primary_category": category,
+        "doi": doi,
+        "journal_ref": journal,
+    }
+
+
+def abs_url(arxiv_id: str, version: str | None) -> str:
+    return f"https://arxiv.org/abs/{arxiv_id}{version or ''}"
+
+
+def preview_backend() -> str | None:
+    """pymupdf, else pdftoppm, else nothing."""
     try:
-        import pymupdf
+        import pymupdf  # noqa: F401
     except ImportError:
         pymupdf = None
-    if pymupdf is not None:
+    else:
+        return "pymupdf"
+    if shutil.which("pdftoppm"):
+        return "pdftoppm"
+    return None
+
+
+def render_preview_png(pdf_path: Path, dest: Path) -> bool:
+    """Crop page 1 to the title, authors, and abstract. False when no renderer exists."""
+    backend = preview_backend()
+    if backend is None:
+        return False
+    if backend == "pymupdf":
+        import pymupdf
         from paper_preview import preview_clip
 
         document = pymupdf.open(pdf_path)
@@ -203,10 +287,11 @@ def render_preview_png(pdf_path: Path, dest: Path) -> None:
             pix = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), clip=clip, alpha=False)
             dest.parent.mkdir(parents=True, exist_ok=True)
             pix.save(str(dest))
-            return
+            return True
         finally:
             document.close()
     _preview_with_poppler(pdf_path, dest)
+    return True
 
 
 def _preview_with_poppler(pdf_path: Path, dest: Path) -> None:
@@ -227,13 +312,23 @@ def _preview_with_poppler(pdf_path: Path, dest: Path) -> None:
     rendered.replace(dest)
 
 
-def fetch_paper(spec: str, repo: Path, *, opener=None, now: datetime | None = None) -> Path:
+def fetch_paper(spec: str, repo: Path, *, opener=None, now: datetime | None = None, sleeper=time.sleep) -> Path:
     """Download into runs/<slug>/source/ and return that directory."""
     kind, ident, version = parse_spec(spec)
-    status, payload = _read(api_url(kind, ident, version), opener)
-    if status != 200 or not payload:
+    status, payload = _read(api_url(kind, ident, version), opener, sleeper)
+    entry = None
+    if status == 200 and payload:
+        try:
+            entry = parse_entry(payload)
+        except FetchError:
+            entry = None
+    if entry is None and kind == "arxiv":
+        html_status, html = _read(abs_url(ident, version), opener, sleeper)
+        if html_status != 200 or not html:
+            raise FetchError(f"arXiv API returned {status} and the abs page returned {html_status}")
+        entry = parse_abs_html(html.decode("utf-8", "replace"), ident, version)
+    elif entry is None:
         raise FetchError(f"arXiv API returned {status}")
-    entry = parse_entry(payload)
     if version and kind == "arxiv":
         entry["version"] = version
     when = (now or datetime.now(timezone.utc)).replace(microsecond=0)
@@ -246,17 +341,23 @@ def fetch_paper(spec: str, repo: Path, *, opener=None, now: datetime | None = No
     dest = repo / "runs" / meta["slug"] / "source"
     dest.mkdir(parents=True, exist_ok=True)
     (dest / "meta.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    pdf_status, pdf = _read(pdf_url(meta["arxiv_id"], meta["version"]), opener)
+    pdf_status, pdf = _read(pdf_url(meta["arxiv_id"], meta["version"]), opener, sleeper)
     if pdf_status != 200 or not pdf.startswith(b"%PDF"):
         raise FetchError("arXiv did not return a PDF")
     (dest / "paper.pdf").write_bytes(pdf)
     try:
-        render_preview_png(dest / "paper.pdf", dest / "preview.png")
+        wrote_preview = render_preview_png(dest / "paper.pdf", dest / "preview.png")
     except FetchError:
         raise
     except Exception as exc:
         raise FetchError(f"preview failed: {exc}") from None
-    src_status, src = _read(src_url(meta["arxiv_id"], meta["version"]), opener)
+    if not wrote_preview:
+        print(
+            "warning: neither pymupdf nor pdftoppm is installed; skipping preview.png. "
+            "The publisher uses the arXiv first page when it publishes.",
+            file=sys.stderr,
+        )
+    src_status, src = _read(src_url(meta["arxiv_id"], meta["version"]), opener, sleeper)
     if src_status == 200 and src.startswith(b"\x1f\x8b"):
         (dest / "source.tar.gz").write_bytes(src)
     elif src_status == 200 and src.lstrip().startswith((b"\\", b"%")):

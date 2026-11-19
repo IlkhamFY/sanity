@@ -76,6 +76,21 @@ def test_every_role_prompt_points_to_the_protocol(role):
     assert "sanity-protocol" in prompt
 
 
+def test_reader_fetch_step_is_what_reconfigure_installs():
+    prompt = (REPO / "agents" / "reader" / "AGENT.md").read_text(encoding="utf-8")
+    assert "python scripts/fetch_paper.py <id>" in prompt
+    assert "runs/<slug>/source/meta.json" in prompt
+    assert "Telegram allows one file per message" in prompt
+    assert "publisher files the run under Examples" in prompt
+    configure = (REPO / "scripts" / "configure_bot.sh").read_text(encoding="utf-8")
+    assert 'cp "$REPO/agents/$ROLE/AGENT.md" "$SOUL"' in configure
+    assert "fetch_paper.py" in configure and "meta.json" in configure
+    setup = (REPO / "scripts" / "setup_bot.sh").read_text(encoding="utf-8")
+    assert 'cp "$ROOT/agents/$ROLE/AGENT.md" "$HERMES_PROFILE_DIR/SOUL.md"' in setup
+    windows = (REPO / "scripts" / "setup_bot.ps1").read_text(encoding="utf-8")
+    assert 'Join-Path $ProfileDir "SOUL.md"' in windows
+
+
 def test_configure_script_writes_the_same_wake_word_as_the_protocol():
     script = (REPO / "scripts" / "configure_bot.sh").read_text(encoding="utf-8")
     written = re.search(r'TELEGRAM_MENTION_PATTERNS=(sanity run=[^"]+to=)\$ROLE', script).group(1)

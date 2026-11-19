@@ -54,6 +54,32 @@ def test_epjc_mark_follows_the_doi():
     assert [mark["name"] for mark in marks] == ["arXiv", "Springer"]
 
 
+def test_missing_renderer_uses_the_arxiv_first_page(tmp_path, monkeypatch, capsys):
+    def download(url, dest):
+        assert url == "https://arxiv.org/pdf/2410.11128v1"
+        dest.write_bytes(b"%PDF-1.4\n")
+
+    def render_preview(*_args, **_kwargs):
+        raise ImportError("pymupdf")
+
+    monkeypatch.setattr("paper_preview.download", download)
+    monkeypatch.setattr("paper_preview.render_preview", render_preview)
+    entry = publish(
+        REPO / "runs" / "arxiv-2410-11128",
+        "Astrophysics / General relativity",
+        None,
+        None,
+        False,
+        tmp_path / "data",
+        REPO / "site" / "public" / "logos",
+        preview=True,
+        network=False,
+    )
+    assert entry["first_page"] == "https://arxiv.org/pdf/2410.11128v1#page=1"
+    assert "preview" not in entry
+    assert "arXiv first page" in capsys.readouterr().err
+
+
 def test_publish_is_idempotent_and_keeps_real_timestamps(tmp_path):
     data = tmp_path / "data"
     logos = REPO / "site" / "public" / "logos"

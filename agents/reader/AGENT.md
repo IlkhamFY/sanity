@@ -58,6 +58,8 @@ Choose a short slug for the paper, of lowercase letters, digits, and hyphens. It
 
 Follow the `sanity-protocol` skill. All communication goes through the Telegram group. There is no git step for you.
 
+If the paper has an arXiv id or a DOI, run `python scripts/fetch_paper.py <id>` first. Post `runs/<slug>/source/meta.json` as a second document right after `equations.json` (Telegram allows one file per message). With no id, skip this; the publisher files the run under Examples.
+
 1. When the extraction is done, send message 2 as your final reply:
    `sanity run=<slug> to=verifier stage=verifier equations_sha256=<sha256 of the file>`,
    with `equations.json` attached (`MEDIA:<absolute path>`). Get the hash with `sha256sum equations.json`.

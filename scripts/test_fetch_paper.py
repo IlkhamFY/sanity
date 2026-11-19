@@ -1,6 +1,7 @@
 """Offline tests for arXiv id parsing and the category map. No network."""
 
 import io
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -8,10 +9,13 @@ import pytest
 
 from fetch_paper import (
     ASTRO_GR,
+    BACKOFF_SECONDS,
+    FetchError,
     api_url,
     build_meta,
     classify,
     fetch_paper,
+    parse_abs_html,
     parse_entry,
     parse_spec,
     pdf_url,
@@ -140,3 +144,123 @@ def test_fetch_writes_source_from_an_opener(tmp_path):
     assert '"fetched_at": "2026-11-19T00:00:00Z"' in meta
     assert all(url.startswith("https://export.arxiv.org/") for url in seen)
     assert Path(dest / "preview.png").suffix == ".png"
+
+
+ABS = """<html><head>
+<meta name="citation_title" content="HTML Fixture"/>
+<meta content="C. Three" name="citation_author"/>
+<meta name="citation_author" content="D. Four"/>
+<meta property="og:description" content="From the abs page."/>
+<meta name="citation_arxiv_id" content="1234.56789"/>
+<meta name="citation_doi" content="10.1000/html"/>
+<meta name="citation_journal_ref" content="J. HTML 2"/>
+</head><body>
+<span class="primary-subject">General Relativity and Quantum Cosmology (gr-qc)</span>
+</body></html>
+"""
+
+
+def test_abs_html_meta_tags():
+    entry = parse_abs_html(ABS, "1234.56789", "v2")
+    assert entry["title"] == "HTML Fixture"
+    assert entry["authors"] == ["C. Three", "D. Four"]
+    assert entry["abstract"] == "From the abs page."
+    assert entry["arxiv_id"] == "1234.56789"
+    assert entry["version"] == "v2"
+    assert entry["primary_category"] == "gr-qc"
+    assert entry["doi"] == "10.1000/html"
+    assert entry["journal_ref"] == "J. HTML 2"
+
+
+class _Seen(list):
+    api = staticmethod(lambda: (200, b""))
+
+
+def _pdf_opener(pages):
+    def opener(url):
+        pages.append(url)
+        if "export.arxiv.org/api" in url:
+            return pages.api()
+        if url.startswith("https://arxiv.org/abs/"):
+            return 200, ABS.encode()
+        if "/pdf/" in url:
+            return 200, b"%PDF-1.4\n"
+        if "/src/" in url:
+            return 404, b""
+        raise AssertionError(url)
+
+    return opener
+
+
+def test_429_retries_then_uses_abs_html(tmp_path, monkeypatch):
+    monkeypatch.setattr("fetch_paper.preview_backend", lambda: None)
+    sleeps = []
+    seen = _Seen()
+
+    def api():
+        return 429, b""
+
+    seen.api = api
+    dest = fetch_paper(
+        "1234.56789v2",
+        tmp_path,
+        opener=_pdf_opener(seen),
+        sleeper=sleeps.append,
+        now=datetime(2026, 11, 19, tzinfo=timezone.utc),
+    )
+    assert BACKOFF_SECONDS == (5, 15, 45)
+    assert sleeps == [5, 15, 45]
+    assert sum("export.arxiv.org/api" in url for url in seen) == 4
+    assert "https://arxiv.org/abs/1234.56789v2" in seen
+    meta = json.loads((dest / "meta.json").read_text(encoding="utf-8"))
+    assert meta["title"] == "HTML Fixture"
+    assert meta["version"] == "v2"
+    assert meta["example"] is False
+    assert not (dest / "preview.png").exists()
+
+
+def test_503_then_atom_does_not_open_the_abs_page(tmp_path, monkeypatch):
+    monkeypatch.setattr("fetch_paper.preview_backend", lambda: None)
+    sleeps = []
+    state = {"n": 0}
+    seen = _Seen()
+
+    def api():
+        state["n"] += 1
+        if state["n"] == 1:
+            return 503, b""
+        return 200, ATOM.encode()
+
+    seen.api = api
+    fetch_paper("1234.56789v2", tmp_path, opener=_pdf_opener(seen), sleeper=sleeps.append)
+    assert sleeps == [5]
+    assert not any(url.startswith("https://arxiv.org/abs/") for url in seen)
+
+
+def test_doi_429_does_not_guess_an_abs_page(tmp_path):
+    seen = []
+
+    def opener(url):
+        seen.append(url)
+        return 429, b""
+
+    with pytest.raises(FetchError):
+        fetch_paper("10.1000/no-such", tmp_path, opener=opener, sleeper=lambda _seconds: None)
+    assert seen
+    assert all("arxiv.org/abs" not in url for url in seen)
+
+
+def test_missing_preview_tools_warn_and_continue(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr("fetch_paper.preview_backend", lambda: None)
+
+    def opener(url):
+        if "api/query" in url:
+            return 200, ATOM.encode()
+        if "/pdf/" in url:
+            return 200, b"%PDF-1.4\n"
+        return 404, b""
+
+    dest = fetch_paper("1234.56789v2", tmp_path, opener=opener, sleeper=lambda _seconds: None)
+    assert (dest / "paper.pdf").read_bytes().startswith(b"%PDF")
+    assert not (dest / "preview.png").exists()
+    assert "skipping preview.png" in capsys.readouterr().err
