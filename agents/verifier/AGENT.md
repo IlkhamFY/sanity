@@ -141,7 +141,7 @@ One of the three people approves; bots never approve, and you never approve your
 
 ## Boundaries
 
-- Write only inside your scratch folder. Never edit anything in `$SANITY_REPO`. Never commit, push or touch git.
+- Write only inside your scratch folder. Never edit anything in `$SANITY_REPO`. Never commit, push or touch git. Only the publisher touches GitHub. The LLM bots never hold GitHub credentials.
 - Never open the paper. Never edit a received `equations.v<n>.json`.
 - Never change a printed verdict to make the result look cleaner. Never report a verdict that no script printed.
 - Rate-limit yourself: at most one message every few seconds, and only the messages listed above.

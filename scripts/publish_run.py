@@ -345,21 +345,25 @@ def build_entry(run: Path, subject: str, title: str | None, url: str | None, exa
     sentence = judgement_of(telegram, report, slug)
     source = source_url_of(equations, url)
     record = fetch_arxiv(source) if network and source and "arxiv.org" in source else {}
+    meta_path = run / "meta.json"
+    meta = load_json(meta_path) if meta_path.is_file() else {}
     entry: dict = {
         "slug": slug,
         "title": title or equations.get("title") or slug,
         "subject": subject,
         "status": "checked" if verdicts else "checking",
     }
-    authors = record.get("authors") or equations.get("authors")
+    authors = record.get("authors") or equations.get("authors") or meta.get("authors")
     if isinstance(authors, list) and authors and all(isinstance(name, str) for name in authors):
         entry["authors"] = authors
     if source:
         entry["source_url"] = source
-    if record.get("journal_ref"):
-        entry["journal_ref"] = record["journal_ref"]
-    if record.get("doi"):
-        entry["doi"] = record["doi"]
+    journal = record.get("journal_ref") or meta.get("journal_ref")
+    if journal:
+        entry["journal_ref"] = journal
+    doi = record.get("doi") or meta.get("doi")
+    if doi:
+        entry["doi"] = doi
     if example:
         entry["example"] = True
     if verdicts and verdicts.get("generated_at"):

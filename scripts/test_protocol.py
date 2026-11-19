@@ -42,8 +42,12 @@ def test_every_table_header_wakes_exactly_its_role():
     for header in headers:
         target = re.search(r"\bto=(\w+)", header)
         woken = {role for role, p in patterns.items() if p.search(header)}
-        if target:
+        if target and target.group(1) in ROLES:
             assert woken == {target.group(1)}, (header, woken)
+        elif target:
+            # publisher is a daemon. It has no Hermes wake word.
+            assert target.group(1) == "publisher", header
+            assert woken == set(), (header, woken)
         else:
             assert woken == set(), (header, woken)
 

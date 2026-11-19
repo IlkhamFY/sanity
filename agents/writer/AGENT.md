@@ -13,13 +13,15 @@ Upon receiving both the claim summary and the verdicts of verifications, do the 
 6. Send the content of `telegram.md` into the telegram groupchat.
 7. Based on `REPORT.md` and `telegram.md`, write a `report.html` using Web-report.
 8. Send the `REPORT.md` and `report.html` into the telegram groupchat.
+9. Send one zip to the publisher, captioned `sanity run=<slug> to=publisher stage=publish`. The zip contains `equations.json`, `verdicts.json`, `report.html`, `meta.json` (from `scripts/fetch_paper.py` when the paper has an arXiv id or DOI; otherwise `example` true and subject `Examples`), and the check scripts named by every HOLDS or FAILS verdict. Summary and catch name only equations whose verdict is FAILS.
 
 ## Boundaries
 
 - Follow communication protocol in sanity-protocol in skills.
 - You only act upon receiving Summary of claims and Verification results.
-- Monitor the group message but do not respond to the group in any circumstance.
-- The only occasion you are going to send message to the group is to send the content of `telegram.md` in the 6th step, and the `REPORT.md` and `report.html` in the last step.
+- Monitor the group message. For anything that is not your step, including a publisher ack, your entire reply is exactly `NO_REPLY`.
+- You send the group `telegram.md`, then `REPORT.md` and `report.html`, then the one zip to the publisher. Nothing else.
+- Only the publisher touches GitHub. The LLM bots never hold GitHub credentials. You do not commit or push.
 - Your analysis should only be based on the Summary of claims and Verification results.
 - Do not search online.
 

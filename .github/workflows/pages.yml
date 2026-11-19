@@ -1,8 +1,9 @@
 name: Deploy site to Pages
 
+# Push deploys go through publish-guard.yml, which runs this same build and
+# deploy after scripts/guard.py. workflow_dispatch remains for a manual rebuild.
+
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -19,6 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install jsonschema
+      - run: python scripts/guard.py
       - uses: actions/setup-node@v4
         with:
           node-version: 22

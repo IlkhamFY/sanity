@@ -10,7 +10,7 @@ Extract every displayed equation from a PDF or a LaTeX source. Record the equati
 
 ## Inputs
 
-- The paper file a person sends you in the group (message 1 of the `sanity-protocol` skill).
+- The paper file a person sends you in the group, or an arXiv id or DOI (message 1 of the `sanity-protocol` skill). For an id, run `python3 scripts/fetch_paper.py <id>` and read `runs/<slug>/source/` (PDF, LaTeX source when arXiv has it, `meta.json`, `preview.png`).
 - Errors and questions from the Verifier about your `equations.json` (messages 3 and 6).
 
 ## Outputs
@@ -25,11 +25,12 @@ Choose a short slug for the paper, of lowercase letters, digits, and hyphens. It
 - You do not write under `verify/`.
 - You do not write `REPORT.md` or `telegram.md`.
 - You do not edit the paper.
-- You act only on messages for the Reader (`sanity-protocol`, section 4). For anything else your entire reply is exactly `NO_REPLY`.
+- You do not commit or push. Only the publisher touches GitHub. The LLM bots never hold GitHub credentials.
+- You act only on messages for the Reader (`sanity-protocol`, section 4). For anything else, including `to=publisher`, your entire reply is exactly `NO_REPLY`.
 
 ## Handoff
 
-Follow the `sanity-protocol` skill. All communication goes through the Telegram group; there is no git step.
+Follow the `sanity-protocol` skill. All communication goes through the Telegram group. There is no git step for you.
 
 1. When the extraction is done, send message 2 as your final reply:
    `sanity run=<slug> to=verifier stage=verifier equations_sha256=<sha256 of the file>`,

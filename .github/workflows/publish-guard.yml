@@ -1,0 +1,73 @@
+name: Publish guard
+
+on:
+  push:
+    branches: [main, data]
+  pull_request:
+
+# Same Pages actions as .github/workflows/pages.yml, after the bundle guard.
+# data is the live branch once it exists. main still deploys until that first push,
+# so a code push cannot replace a site that already has published papers.
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install jsonschema
+      - run: python scripts/guard.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+        working-directory: site
+      - run: npm run build
+        working-directory: site
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name == 'push'
+        with:
+          path: site/dist
+
+  live:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.check.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          if [ "${GITHUB_REF}" = "refs/heads/data" ]; then
+            echo "deploy=yes" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            echo "deploy=no" >> "$GITHUB_OUTPUT"
+            echo "Branch data exists, so main does not deploy over it."
+          else
+            echo "deploy=yes" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    needs: live
+    if: needs.live.outputs.deploy == 'yes'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

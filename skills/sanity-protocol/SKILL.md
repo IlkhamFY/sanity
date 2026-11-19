@@ -6,9 +6,10 @@ description: How the Sanity bots (Reader, Verifier, Writer) and the three people
 # sanity-protocol
 
 Three bots and three people (Ilkham, Konstantin, Lloyd) share one Telegram group.
-A paper flows **person → Reader → Verifier → Writer → group**. All agent-to-agent
-communication goes through this group; there is no shared repository for run data.
+A paper flows **person → Reader → Verifier → Writer → publisher → site**. All agent-to-agent
+communication goes through this group; the bots do not share a checkout.
 Files travel as Telegram attachments, and each bot keeps its own working copies.
+Only the publisher daemon commits to GitHub. The LLM bots never hold GitHub credentials.
 
 ## 1. Headers
 
@@ -21,9 +22,9 @@ sanity run=<slug> [to=<role>] <key>=<value> ...
 
 - `<slug>`: the paper's short name, lowercase letters, digits and hyphens
   (`bec-harmonic-trap`). The Reader chooses it; everyone reuses it unchanged.
-- `to=<role>`: `reader`, `verifier` or `writer`. **This is how bots address each
-  other.** A message without `to=` (status, progress, done) is for people and wakes
-  no bot.
+- `to=<role>`: `reader`, `verifier`, `writer`, or `publisher`. **This is how bots address
+  each other.** `publisher` is the daemon in `scripts/publisher.py`, not a Hermes bot.
+  A message without `to=` (status, progress, done) is for people and wakes no bot.
 - Keys are `key=value`, separated by spaces, with no spaces inside a value.
 
 ## 2. Addressing: by role, never by @handle
@@ -38,6 +39,9 @@ whoever runs it:
 | Verifier | `TELEGRAM_MENTION_PATTERNS=sanity run=[^ ]+ .*to=verifier` |
 | Writer | `TELEGRAM_MENTION_PATTERNS=sanity run=[^ ]+ .*to=writer` |
 
+The publisher does not use a mention pattern. It polls `getUpdates` with its own bot
+token and accepts only `to=publisher`. That header wakes none of the three bots.
+
 - **Bots never write @handles of other bots.** You do not know them, and a wrong or
   invented @ (`@reader`, `@writer`, a guessed name) reaches nobody.
 - People may use @handles. A person can address a bot by its @handle, by replying
@@ -49,7 +53,7 @@ whoever runs it:
 
 | # | From → to | Header | Attachments |
 |---|---|---|---|
-| 1 | person → Reader | `@<reader handle>` or `sanity run=<slug> to=reader stage=reader` | the paper (PDF or LaTeX) |
+| 1 | person → Reader | `@<reader handle>` or `sanity run=<slug> to=reader stage=reader` | the paper (PDF or LaTeX), or an arXiv id or DOI in the text |
 | 2 | Reader → Verifier | `sanity run=<slug> to=verifier stage=verifier equations_sha256=<hex>` | `equations.json` |
 | 3 | Verifier → Reader | `sanity run=<slug> to=reader error`, as a reply to 2 | none (the error text follows) |
 | 4 | Verifier → group | `sanity run=<slug> status=started attempt=<n> claims=<k> estimate_min=<m>` | `PLAN.md` |
@@ -59,6 +63,8 @@ whoever runs it:
 | 8 | Verifier → Writer | `sanity run=<slug> to=writer stage=writer attempt=<n> equations_sha256=<hex> verdicts_sha256=<hex> bundle_sha256=<hex> code=<commit>`, as the **caption of the bundle** | one file: `<slug>-<n>.zip` (contains `equations.json` and `verify/verdicts.json`) |
 | 9 | Writer → group | `sanity run=<slug> status=done attempt=<n>` | optional `REPORT.md` |
 | 10 | person → any bot | `stop <slug>`, `rerun <slug>`, `status <slug>`, with the bot's @handle, as a reply to it, or after `sanity run=<slug> to=<role>` | none |
+| 11 | bot → Publisher | `sanity run=<slug> to=publisher stage=event` | none; the next line is one activity line, and it starts with Reader, Verifier, or Writer |
+| 12 | Writer → Publisher | `sanity run=<slug> to=publisher stage=publish` | one `.zip`: `equations.json`, `verdicts.json`, `report.html`, `meta.json`, and the check scripts |
 
 Notes:
 
@@ -80,6 +86,14 @@ Notes:
   `verify/verdicts.json` from it (and checks `verdicts_sha256`). A run can have several attempts; a later attempt replaces an
   earlier one for the same run.
 - **9**: the end of a run, for people. Nobody answers it.
+- **11**: one activity line. The publisher appends it (`publish_run.py --event`) and does not
+  reply. An LLM bot that sees it replies `NO_REPLY`.
+- **12**: one zip, header as its caption, for the same reason as message 8: a caption rides
+  on exactly one file. The zip holds `equations.json`, `verdicts.json` (or
+  `verify/verdicts.json`), `report.html`, `meta.json`, and every check script a
+  HOLDS or FAILS verdict names. The publisher validates it, runs `publish_run.py`,
+  and commits. The same zip a second time does not make a second commit. LLM bots
+  reply `NO_REPLY`. They never hold a GitHub token or deploy key.
 
 ## 4. When to act, when to stay silent
 
@@ -155,5 +169,16 @@ sessions keep the old instructions.
 ## 7. Starting a run (people)
 
 Send the paper to the Reader, with its @handle or `sanity run=<slug> to=reader
-stage=reader` as the caption. Everything else follows from the messages above. To
-redo a step: `rerun <slug>` to that bot. To stop: `stop <slug>`.
+stage=reader` as the caption. An arXiv id or a DOI is enough: the Reader runs
+`python3 scripts/fetch_paper.py <id>` and reads `runs/<slug>/source/`. Everything
+else follows from the messages above. To redo a step: `rerun <slug>` to that bot.
+To stop: `stop <slug>`.
+
+## 8. The publisher
+
+`scripts/publisher.py` is a daemon, not a Hermes bot. It polls the group with its
+own bot token (`SANITY_PUBLISHER_BOT_TOKEN`) and pushes with a deploy key
+(`SANITY_DEPLOY_KEY`). It is the only process that commits or pushes. The branch
+is `data`, never `main`, and the push is never a force push. A publish that fails
+the guard is not committed. The reply in the group is `published <slug> -> <url>`
+or the validation error. Setup: [docs/setup-publisher.md](../../docs/setup-publisher.md).

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sanity.local/schemas/meta.schema.json",
+  "title": "Paper source record",
+  "description": "runs/<slug>/source/meta.json from scripts/fetch_paper.py, and the meta.json in a publisher bundle. Bibliographic fields come from the arXiv API. subject is the site section for that category. example is true only when there is no arXiv id and no DOI.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "title",
+    "authors",
+    "abstract",
+    "arxiv_id",
+    "version",
+    "primary_category",
+    "doi",
+    "journal_ref",
+    "fetched_at",
+    "slug",
+    "subject",
+    "example"
+  ],
+  "properties": {
+    "title": {"type": "string"},
+    "authors": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "abstract": {"type": "string"},
+    "arxiv_id": {"type": ["string", "null"]},
+    "version": {"type": ["string", "null"]},
+    "primary_category": {"type": ["string", "null"]},
+    "doi": {"type": ["string", "null"]},
+    "journal_ref": {"type": ["string", "null"]},
+    "fetched_at": {"type": ["string", "null"]},
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "subject": {"type": "string", "minLength": 1},
+    "example": {"type": "boolean"},
+    "summary": {"type": "string"},
+    "catch": {"type": "string"}
+  }
+}
